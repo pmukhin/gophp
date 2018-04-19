@@ -2,11 +2,11 @@ package parser
 
 import (
 	"testing"
-	"lang/scanner"
-	"lang/ast"
+	"github.com/pmukhin/gophp/scanner"
+	"github.com/pmukhin/gophp/ast"
 	"reflect"
 	"strings"
-	"lang/token"
+	"github.com/pmukhin/gophp/token"
 	"fmt"
 )
 
@@ -54,17 +54,18 @@ func TestParser_ParseFunction(t *testing.T) {
 
 	run(t, input, []ast.Statement{
 		ast.ExpressionStatement{
-			Expression: ast.FunctionDeclaration{
-				Name:       "render",
-				ReturnType: "Response",
+			Expression: ast.FunctionDeclarationExpression{
+				Anonymous:  false,
+				Name:       ast.Identifier{Value: "render"},
+				ReturnType: &ast.Identifier{Value: "Response"},
 				Args: []ast.Arg{
 					{
-						Type: "",
-						Name: "view",
+						Type: nil,
+						Name: ast.VariableExpression{Name: "view"},
 					},
 					{
-						Type: "array",
-						Name: "parameters",
+						Type: &ast.Identifier{Value: "array"},
+						Name: ast.VariableExpression{Name: "parameters"},
 					},
 				},
 			},

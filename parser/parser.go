@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"lang/scanner"
-	"lang/ast"
-	"lang/token"
+	"github.com/pmukhin/gophp/scanner"
+	"github.com/pmukhin/gophp/ast"
+	"github.com/pmukhin/gophp/token"
 	"fmt"
 	"strings"
 	"io"
@@ -198,12 +198,12 @@ func (p *Parser) parseUseStatement() (us ast.UseStatement, err error) {
 // parseFunctionDeclaration
 func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	p.next() // eat `function`
-	fun := ast.FunctionDeclaration{}
+	fun := ast.FunctionDeclarationExpression{}
 
 	// function has a name
 	if p.curToken.Type == token.IDENT {
 		// give function a name
-		fun.Name = p.curToken.Literal
+		fun.Name = ast.Identifier{Value: p.curToken.Literal}
 		// just for making it explicit
 		fun.Anonymous = false
 		p.next() // eat IDENT
@@ -230,7 +230,7 @@ func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	}
 
 	if p.curToken.Type == token.CURLY_OPENING {
-		fun.Body, err = p.parseBlock()
+		fun.Block, err = p.parseBlock()
 		if err != nil {
 			return fun, err
 		}
@@ -282,21 +282,21 @@ func (p *Parser) parseArgs() ([]ast.Arg, error) {
 
 // parseReturnType parses return type declarations like
 // function()`: ReturnTypeClass` {
-func (p *Parser) parseReturnType() (string, error) {
+func (p *Parser) parseReturnType() (*ast.Identifier, error) {
 	p.next() // eat `:`
 	if err := p.assertTokenType(token.IDENT); err != nil {
-		return "", err
+		return nil, err
 	}
 	returnType := p.curToken.Literal
 	p.next() // eat IDENT
 	// token.IDENT is return type
-	return returnType, nil
+	return &ast.Identifier{Value: returnType}, nil
 }
 
-func (p *Parser) parseBlock() (ast.BlockStatement, error) {
+func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
 	// eat {
 	p.next()
-	block := ast.BlockStatement{}
+	block := new(ast.BlockStatement)
 	for {
 		st, err := p.parseExpressionStatement()
 		if err != nil {
@@ -320,7 +320,7 @@ func (p *Parser) parseTypedArg() (arg ast.Arg, err error) {
 		return
 	}
 
-	arg.Type = typeName
+	arg.Type = &ast.Identifier{Value: typeName}
 	return
 }
 
@@ -333,7 +333,7 @@ func (p *Parser) parseArg() (ast.Arg, error) {
 		return arg, err
 	}
 	// assign name
-	arg.Name = p.curToken.Literal
+	arg.Name = ast.VariableExpression{Name: p.curToken.Literal}
 
 	if p.peek().Type == token.EQUAL {
 		// we have assign
@@ -382,9 +382,9 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 func (p *Parser) parseVariable() (ast.Expression, error) {
 	// eat $
 	p.next()
-	variable := ast.Variable{}
+	variable := ast.VariableExpression{}
 	if err := p.assertTokenType(token.IDENT); err != nil {
-		return ast.Variable{}, err
+		return variable, err
 	}
 	variable.Name = p.curToken.Literal
 	// eat IDENT
@@ -409,13 +409,13 @@ func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
 	p.next()
 
 	switch left.(type) {
-	case ast.Variable:
+	case ast.VariableExpression:
 		// do noting, that's okay
 	default:
 		return ast.Null{}, fmt.Errorf("can not assign to %s", left.String())
 	}
 
-	as := ast.Assignment{
+	as := ast.AssignmentExpression{
 		Left: left,
 	}
 	right, err := p.parseExpression(-1)
@@ -435,7 +435,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, erro
 	// eat `[`
 	p.next()
 
-	indexExpression := ast.Index{Left: left}
+	indexExpression := ast.IndexExpression{Left: left}
 	value, err := p.parseExpression(-1)
 	if err != nil {
 		return indexExpression, err
@@ -446,7 +446,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, erro
 	}
 	// eat `]`
 	p.next()
-	indexExpression.Value = value
+	indexExpression.Index = value
 
 	return indexExpression, nil
 }
@@ -457,7 +457,7 @@ func (p *Parser) parseStringLiteral() (ast.Expression, error) {
 }
 
 func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
-	ce := ast.Condition{}
+	ce := ast.ConditionalExpression{}
 	// eat `if`
 	p.next()
 
@@ -498,7 +498,7 @@ func (p *Parser) parseIdentifier() (ast.Expression, error) {
 func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression, error) {
 	// eat `instanceof`
 	p.next()
-	iof := ast.InstanceOf{Object: left}
+	iof := ast.InstanceOfExpression{Object: left}
 	right, err := p.parseExpression(-1)
 	if err != nil {
 		return iof, err
@@ -518,7 +518,9 @@ func (p *Parser) parseObjectFetch(left ast.Expression) (ast.Expression, error) {
 	if p.curToken.Type != token.PARENTHESIS_OPENING {
 		return ast.PropertyDereference{Object: left, PropertyName: target.String()}, nil
 	}
-	methodCall := ast.MethodCall{Object: left, Name: target.String()}
+	methodCall := ast.MethodCall{Object: left, FunctionCall: ast.FunctionCall{
+		Target: ast.Identifier{Value: target.String()},
+	}}
 	// eat `(`
 	p.next()
 	// if next is `)` there's no arg

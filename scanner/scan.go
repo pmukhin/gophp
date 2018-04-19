@@ -3,7 +3,7 @@ package scanner
 import (
 	"io"
 	"unicode"
-	"lang/token"
+	"github.com/pmukhin/gophp/token"
 )
 
 var tokens = map[string]TokenType{
