@@ -636,7 +636,7 @@ func (a Arg) String() string {
 // `function <Name> (<Args> <Variadic>): <ReturnType> { <Block> }`
 type FunctionDeclarationExpression struct {
 	Anonymous  bool
-	Name       Identifier
+	Name       *Identifier
 	Args       []Arg
 	ReturnType *Identifier
 	Block      *BlockStatement

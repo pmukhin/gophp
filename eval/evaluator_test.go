@@ -72,7 +72,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := NewContext(nil, InternalFunctionTable)
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -141,7 +141,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := NewContext(nil, InternalFunctionTable)
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -155,6 +155,24 @@ func TestEval(t *testing.T) {
 		}
 	})
 
+	t.Run("evaluate user function", func(t *testing.T) {
+		p := parser.New(scanner.New([]rune(`
+			function test() {}
+			$var = test();
+			println($var)
+`)))
+		program, e := p.Parse()
+		if e != nil {
+			t.Error(e)
+		}
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		_, e = Eval(program, ctx)
+		if e != nil {
+			t.Error(e)
+		}
+
+	})
+
 	t.Run("evaluate bool expression and print", func(t *testing.T) {
 		p := parser.New(scanner.New([]rune(`
 			$is = 5 > 5
@@ -164,7 +182,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		ctx := NewContext(nil, InternalFunctionTable)
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
 		_, e = Eval(program, ctx)
 		if e != nil {
 			t.Error(e)
@@ -197,7 +215,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := NewContext(nil, InternalFunctionTable)
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -228,7 +246,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := NewContext(nil, InternalFunctionTable)
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)

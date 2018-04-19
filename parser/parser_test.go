@@ -38,6 +38,19 @@ func run(t *testing.T, input string, expectations []ast.Statement) {
 	}
 }
 
+func TestParser_ParseSimpleConditional_FunctionDeclaration(t *testing.T) {
+	input := `function first() {}`
+	run(t, input, []ast.Statement{
+		&ast.ExpressionStatement{
+			&ast.FunctionDeclarationExpression{
+				Name:  &ast.Identifier{Value: "first"},
+				Args:  []ast.Arg{},
+				Block: &ast.BlockStatement{},
+			},
+		},
+	})
+}
+
 func TestParser_ParseSimpleConditional_NewStyle(t *testing.T) {
 	input := `if (true) { 5 } else { 0 }`
 	run(t, input, []ast.Statement{
@@ -108,7 +121,7 @@ func TestParser_ParseFunction(t *testing.T) {
 		ast.ExpressionStatement{
 			Expression: ast.FunctionDeclarationExpression{
 				Anonymous:  false,
-				Name:       ast.Identifier{Value: "render"},
+				Name:       &ast.Identifier{Value: "render"},
 				ReturnType: &ast.Identifier{Value: "Response"},
 				Args: []ast.Arg{
 					{

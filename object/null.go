@@ -20,6 +20,4 @@ type NullObject struct{}
 
 func (NullObject) Class() Class { return classNull }
 
-func (NullObject) Id() string {
-	return "0"
-}
+func (NullObject) Id() string { panic("id") }

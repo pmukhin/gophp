@@ -226,12 +226,12 @@ func (p *Parser) parseUseStatement() (us ast.UseStatement, err error) {
 // parseFunctionDeclaration
 func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	p.next() // eat `function`
-	fun := ast.FunctionDeclarationExpression{}
+	fun := &ast.FunctionDeclarationExpression{}
 
 	// function has a name
 	if p.curToken.Type == token.IDENT {
 		// give function a name
-		fun.Name = ast.Identifier{Value: p.curToken.Literal}
+		fun.Name = &ast.Identifier{Value: p.curToken.Literal}
 		// just for making it explicit
 		fun.Anonymous = false
 		p.next() // eat IDENT
@@ -324,6 +324,9 @@ func (p *Parser) parseReturnType() (*ast.Identifier, error) {
 func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
 	p.next() // eat `{`
 	block := new(ast.BlockStatement)
+	if p.curToken.Type == token.CURLY_CLOSING {
+		goto exit
+	}
 	for {
 		st, err := p.parseExpressionStatement()
 		if err != nil {
@@ -334,6 +337,7 @@ func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
 			break
 		}
 	}
+exit:
 	p.next() // eat `}`
 	return block, nil
 }

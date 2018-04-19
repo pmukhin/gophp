@@ -317,7 +317,7 @@ func (s *Scanner) skipWhitespace() {
 }
 
 func (s *Scanner) isIdentifier(r rune) bool {
-	return unicode.IsLetter(r) || r == '_'
+	return unicode.IsLetter(r) || r == '_' || unicode.IsDigit(r)
 }
 
 func (s *Scanner) scanIdentifier() (Token) {

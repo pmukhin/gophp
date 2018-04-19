@@ -33,8 +33,14 @@ func getClass(class string) object.Class {
 	return nil
 }
 
-func Eval(node ast.Node, ctx Context) (object.Object, error) {
+func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
+	case *ast.FunctionDeclarationExpression:
+		o := object.NewUserFunc(node.Name.Value, node.Args, node.Block)
+		e := ctx.GetFunctionTable().RegisterFunc(o)
+		if e != nil {
+			return object.Null, e
+		}
 	case *ast.FunctionCall:
 		name := node.Target.Value
 		fun, e := ctx.GetFunctionTable().Find(name)
@@ -48,7 +54,12 @@ func Eval(node ast.Node, ctx Context) (object.Object, error) {
 				return nil, e
 			}
 		}
-		return fun.Call(args...)
+		switch realFun := fun.(type) {
+		case *object.InternalFunction:
+			return realFun.Call(ctx, args...)
+		case *object.UserFunction:
+			return Eval(realFun.Block(), ctx)
+		}
 	case *ast.ConditionalExpression:
 		condition, err := Eval(node.Condition, ctx)
 		if err != nil {
@@ -135,15 +146,16 @@ func Eval(node ast.Node, ctx Context) (object.Object, error) {
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, ctx)
 	case *ast.BlockStatement:
-		var (
-			r object.Object
-			e error
-		)
+		var r object.Object
 		for _, st := range node.Statements {
+			var e error
 			r, e = Eval(st, ctx)
 			if e != nil {
-				return nil, e
+				return r, e
 			}
+		}
+		if r == nil {
+			return object.Null, nil
 		}
 		return r, nil
 	case *ast.Program:

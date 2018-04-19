@@ -10,14 +10,14 @@ import (
 	"github.com/pmukhin/gophp/object"
 )
 
-var ctx eval.Context
+var ctx object.Context
 
 func Main() {
 	out := os.Stdout
 	in := os.Stdin
 
 	// create context
-	ctx = eval.NewContext(nil, eval.InternalFunctionTable)
+	ctx = object.NewContext(nil, object.InternalFunctionTable)
 
 	reader := bufio.NewReader(in)
 	for {

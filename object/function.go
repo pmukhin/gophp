@@ -12,45 +12,63 @@ var (
 	}
 )
 
-type Callable interface {
-	Call(...Object) (Object, error)
+func NewInternalFunc(name string, f func(ctx Context, args ...Object) (Object, error)) FunctionObject {
+	return &InternalFunction{name: name, f: f}
 }
 
-type internalFunc struct {
+type FunctionObject interface {
+	Object
+	Name() string
+	Args() []ast.Arg
+	Block() *ast.BlockStatement
+}
+
+type InternalFunction struct {
 	name string
-	f    func(args ...Object) (Object, error)
+	args []ast.Arg
+	f    func(ctx Context, args ...Object) (Object, error)
 }
 
-func (ifu internalFunc) Call(o ...Object) (Object, error) {
-	return ifu.f(o...)
-}
-
-func (internalFunc) Class() Class {
+func (inf InternalFunction) Class() Class {
 	return functionClass
 }
 
-func (internalFunc) Id() string {
-	panic("implement me")
+func (inf InternalFunction) Id() string { panic("implement me") }
+
+func (inf InternalFunction) Name() string {
+	return inf.name
 }
 
-func NewInternalFunc(name string, f func(args ...Object) (Object, error)) Callable {
-	return &internalFunc{name: name, f: f}
+func (inf InternalFunction) Args() []ast.Arg {
+	return inf.args
 }
 
-type FunctionObject struct {
-	Name  string
-	Args  []ast.Arg
-	Block *ast.BlockStatement
+func (InternalFunction) Block() *ast.BlockStatement { return nil }
+
+func (inf InternalFunction) Call(ctx Context, args ...Object) (Object, error) {
+	return inf.f(ctx, args...)
 }
 
-func (fo FunctionObject) Call(args ...Object) (Object, error) {
-	panic("implement me")
+type UserFunction struct {
+	name  string
+	args  []ast.Arg
+	block *ast.BlockStatement
 }
 
-func (FunctionObject) Class() Class {
-	return functionClass
+func NewUserFunc(name string, args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+	return &UserFunction{
+		name:  name,
+		args:  args,
+		block: block,
+	}
 }
 
-func (FunctionObject) Id() string {
-	panic("implement me")
-}
+func (UserFunction) Class() Class { return functionClass }
+
+func (UserFunction) Id() string { panic("implement me") }
+
+func (uf UserFunction) Name() string { return uf.name }
+
+func (uf UserFunction) Args() []ast.Arg { return uf.args }
+
+func (uf UserFunction) Block() *ast.BlockStatement { return uf.block }
