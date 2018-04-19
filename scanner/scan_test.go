@@ -2,7 +2,7 @@ package scanner
 
 import (
 	"testing"
-	"lang/token"
+	"github.com/pmukhin/gophp/token"
 	"reflect"
 )
 

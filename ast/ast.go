@@ -12,6 +12,8 @@ type NodeType uint8
 
 const (
 	IdentifierType NodeType = iota
+	StatementType
+	ProgramType
 )
 
 type Node interface {
@@ -671,13 +673,11 @@ type Program struct {
 	Statements []Statement
 }
 
-func (p Program) Accept(Visitor) {
-	panic("implement me")
-}
+// Accept ...
+func (p Program) Accept(v Visitor) { v.Visit(ProgramType, p) }
 
-func (p Program) expressionNode() {
-	panic("implement me")
-}
+// expressionNode ...
+func (p Program) expressionNode() {}
 
 func (Program) Pos() int {
 	panic("implement me")
