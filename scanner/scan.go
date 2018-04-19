@@ -65,7 +65,7 @@ var (
 	tokenSmallerOrEqual = Token{Type: token.IS_SMALLER_OR_EQUAL, Literal: "<="}
 	tokenGreaterOrEqual = Token{Type: token.IS_GREATER_OR_EQUAL, Literal: "<="}
 
-	tokenEqual       = Token{Type: token.EQUAL, Literal: "="}
+	tokenAssign      = Token{Type: token.EQUAL, Literal: "="}
 	tokenDoubleArrow = Token{Type: token.DOUBLE_ARROW, Literal: "=>"}
 
 	tokenComma = Token{Type: token.COMMA, Literal: ","}
@@ -73,7 +73,10 @@ var (
 	tokenSemicolon = Token{Type: token.SEMICOLON, Literal: ";"}
 	tokenColon     = Token{Type: token.COLON, Literal: ":"}
 
-	tokenNot          = Token{Type: token.NOT, Literal: "!"}
+	tokenNot = Token{Type: token.NOT, Literal: "!"}
+
+	tokenEqual        = Token{Type: token.IS_EQUAL, Literal: "=="}
+	tokenIdentical    = Token{Type: token.IS_EQUAL, Literal: "==="}
 	tokenNotEqual     = Token{Type: token.IS_NOT_EQUAL, Literal: "!="}
 	tokenNotIdentical = Token{Type: token.IS_NOT_IDENTICAL, Literal: "!=="}
 
@@ -152,6 +155,8 @@ func (s *Scanner) Next() (tok Token) {
 		} else {
 			tok = tokenColon
 		}
+	case '\n':
+		tok = tokenSemicolon
 	case ';':
 		tok = tokenSemicolon
 	case '!':
@@ -170,8 +175,16 @@ func (s *Scanner) Next() (tok Token) {
 		if s.peek() == '>' {
 			s.nextChar()
 			tok = tokenDoubleArrow
+		} else if s.peek() == '=' {
+			s.nextChar() // eat `=`
+			if s.peek() == '=' {
+				s.nextChar()
+				tok = tokenIdentical
+			} else {
+				tok = tokenEqual
+			}
 		} else {
-			tok = tokenEqual
+			tok = tokenAssign
 		}
 	case '<':
 		if s.peek() == '=' {

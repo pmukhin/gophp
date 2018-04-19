@@ -13,11 +13,12 @@ var opMethods = map[string]string{
 	"/": "__div",
 	"*": "__mul",
 
-	"==": "__equal",
-	">":  "__gt",
-	"<":  "__lt",
-	">=": "__gte",
-	"=<": "__lte",
+	"==":  "__equal",
+	"===": "__identical",
+	">":   "__gt",
+	"<":   "__lt",
+	">=":  "__gte",
+	"=<":  "__lte",
 
 
 	"&": "__and",
@@ -48,7 +49,39 @@ func Eval(node ast.Node, ctx Context) (object.Object, error) {
 			}
 		}
 		return fun.Call(args...)
+	case *ast.ConditionalExpression:
+		condition, err := Eval(node.Condition, ctx)
+		if err != nil {
+			return object.Null, err
+		}
+		var boolean *object.BooleanObject
 
+		b, isBool := condition.(*object.BooleanObject)
+		if !isBool {
+			toBoolean := condition.Class().Methods().Find("__toBoolean")
+			if toBoolean == nil {
+				return object.Null, fmt.Errorf("can not convert %v to Boolean", condition)
+			}
+			b, e := toBoolean.Call(condition)
+			if e != nil {
+				return object.Null, err
+			}
+			boolean = b.(*object.BooleanObject)
+		} else {
+			boolean = b
+		}
+		if boolean.Value {
+			return Eval(node.Consequence, ctx)
+		}
+		return Eval(node.Alternative, ctx)
+	case *ast.Identifier:
+		if node.Value == "true" {
+			return object.True, nil
+		}
+		if node.Value == "false" {
+			return object.False, nil
+		}
+		return object.Null, nil
 	case *ast.BinaryExpression:
 		l, e := Eval(node.Left, ctx)
 		if e != nil {
@@ -61,7 +94,8 @@ func Eval(node ast.Node, ctx Context) (object.Object, error) {
 		if m := l.Class().Methods().Find(opMethods[node.Op]); m != nil {
 			return m.Call(l, r)
 		}
-		return nil, fmt.Errorf("undefined operator %s", node.Op)
+		return nil, fmt.Errorf("operator %s (method %s) is not defined on type %s",
+			node.Op, opMethods[node.Op], l.Class().Name())
 	case *ast.IntegerLiteral:
 		return object.IntegerClass.InternalConstructor(node.Value)
 	case *ast.VariableExpression:
@@ -100,6 +134,18 @@ func Eval(node ast.Node, ctx Context) (object.Object, error) {
 		return cls.Constructor().Call(nil, args...)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, ctx)
+	case *ast.BlockStatement:
+		var (
+			r object.Object
+			e error
+		)
+		for _, st := range node.Statements {
+			r, e = Eval(st, ctx)
+			if e != nil {
+				return nil, e
+			}
+		}
+		return r, nil
 	case *ast.Program:
 		var (
 			r object.Object

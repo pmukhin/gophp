@@ -29,6 +29,17 @@ func iEqual(this Object, os ...Object) (Object, error) {
 	return False, nil
 }
 
+func isGreater(this Object, os ...Object) (Object, error) {
+	l, r, e := infer(this, os...)
+	if e != nil {
+		return Null, e
+	}
+	if l.Value > r.Value {
+		return True, nil
+	}
+	return False, nil
+}
+
 func iAdd(this Object, os ...Object) (Object, error) {
 	l, r, e := infer(this, os...)
 	if e != nil {
@@ -86,6 +97,7 @@ var (
 		"__mul":       newMethod(iMul, VisibilityPublic),
 		"__div":       newMethod(iDiv, VisibilityPublic),
 		"__equal":     newMethod(iEqual, VisibilityPublic),
+		"__gt":        newMethod(isGreater, VisibilityPublic),
 		"__toBoolean": newMethod(iToBoolean, VisibilityPublic),
 	}
 

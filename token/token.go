@@ -150,4 +150,5 @@ const (
 	COALESCE                  /* "??"			*/
 	POW                       /* "**"			*/
 	POW_EQUAL                 /* "**="			*/
+	NEWLINE
 )

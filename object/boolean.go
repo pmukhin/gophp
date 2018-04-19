@@ -2,9 +2,10 @@ package object
 
 var (
 	BooleanClass = internalClass{
-		name:     "Boolean",
-		final:    true,
-		abstract: false,
+		name:      "Boolean",
+		final:     true,
+		abstract:  false,
+		methodSet: newMethodSet(nil),
 	}
 
 	True  = &BooleanObject{Value: true}

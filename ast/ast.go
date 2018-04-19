@@ -185,7 +185,19 @@ func (ConditionalExpression) End() int {
 func (ConditionalExpression) TokenLiteral() string { panic("implement me") }
 
 // String ...
-func (ConditionalExpression) String() string { panic("implement me") }
+func (ce ConditionalExpression) String() string {
+	out := bytes.Buffer{}
+	out.WriteString("if ")
+	out.WriteString(ce.Condition.String() + " ")
+	out.WriteString(ce.Consequence.String())
+
+	if ce.Alternative != nil {
+		out.WriteString(" else ")
+		out.WriteString(ce.Alternative.String())
+	}
+
+	return out.String()
+}
 
 // expressionNode ...
 func (ConditionalExpression) expressionNode() {}
@@ -539,7 +551,7 @@ func (ForEachExpression) expressionNode() {}
 // FunctionCall represents
 // substr($str, 0)
 type FunctionCall struct {
-	Target   Identifier
+	Target   *Identifier
 	CallArgs []Expression
 }
 

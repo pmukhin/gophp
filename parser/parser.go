@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"io"
+	"strconv"
 )
 
 var precedences = map[scanner.TokenType]int{
@@ -26,6 +27,14 @@ type Parser struct {
 	infixExpressionParsers  map[scanner.TokenType]infixParser
 
 	__scn *scanner.Scanner
+}
+
+func New(s *scanner.Scanner) *Parser {
+	p := new(Parser)
+	p.__scn = s
+	p.init()
+
+	return p
 }
 
 func (p *Parser) next() {
@@ -61,20 +70,38 @@ func (p *Parser) init() {
 	p.prefixExpressionParsers[token.IF] = p.parseConditionalExpression
 	p.prefixExpressionParsers[token.PARENTHESIS_OPENING] = p.parseGroupedExpression
 	p.prefixExpressionParsers[token.IDENT] = p.parseIdentifier
+	p.prefixExpressionParsers[token.NUMBER] = p.parseInteger
 
 	p.infixExpressionParsers = make(map[scanner.TokenType]infixParser)
 	// infix parsers
 	p.infixExpressionParsers[token.EQUAL] = p.parseAssignment
+
+	p.infixExpressionParsers[token.PLUS] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.MINUS] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.MUL] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.DIV] = p.parseBinaryExpression
+
+	p.infixExpressionParsers[token.IS_GREATER] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_GREATER_OR_EQUAL] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_SMALLER] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_SMALLER_OR_EQUAL] = p.parseBinaryExpression
+
+	p.infixExpressionParsers[token.IS_EQUAL] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_NOT_EQUAL] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_IDENTICAL] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.IS_NOT_IDENTICAL] = p.parseBinaryExpression
+
 	p.infixExpressionParsers[token.SQUARE_BRACKET_OPENING] = p.parseIndexExpression
 	p.infixExpressionParsers[token.INSTANCEOF] = p.parseInstanceOfExpression
 	p.infixExpressionParsers[token.OBJECT_OPERATOR] = p.parseObjectFetch
+	p.infixExpressionParsers[token.PARENTHESIS_OPENING] = p.parseFunctionCall
 
 	p.next()
 }
 
 // Parse
-func (p *Parser) Parse() (ast.Program, error) {
-	program := ast.Program{Statements: make([]ast.Statement, 0, 256)}
+func (p *Parser) Parse() (*ast.Program, error) {
+	program := &ast.Program{Statements: make([]ast.Statement, 0, 256)}
 	for {
 		st, err := p.parseStatement()
 		if err != nil {
@@ -106,15 +133,16 @@ func (p *Parser) parseStatement() (st ast.Statement, err error) {
 	return
 }
 
-func (p *Parser) parseExpressionStatement() (es ast.ExpressionStatement, err error) {
+func (p *Parser) parseExpressionStatement() (es *ast.ExpressionStatement, err error) {
+	es = new(ast.ExpressionStatement) // alloc
 	expression, err := p.parseExpression(-1)
 	if err != nil {
 		return es, err
 	}
-	// eat `;`
-	defer p.next()
 	es.Expression = expression
-	err = p.assertTokenType(token.SEMICOLON)
+	if p.curToken.Type == token.SEMICOLON {
+		p.next() // eat `;` if it's there
+	}
 
 	return
 }
@@ -294,8 +322,7 @@ func (p *Parser) parseReturnType() (*ast.Identifier, error) {
 }
 
 func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
-	// eat {
-	p.next()
+	p.next() // eat `{`
 	block := new(ast.BlockStatement)
 	for {
 		st, err := p.parseExpressionStatement()
@@ -303,10 +330,11 @@ func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
 			return block, err
 		}
 		block.Statements = append(block.Statements, st)
-		if p.peek().Type == token.CURLY_CLOSING {
+		if p.curToken.Type == token.CURLY_CLOSING {
 			break
 		}
 	}
+	p.next() // eat `}`
 	return block, nil
 }
 
@@ -351,9 +379,9 @@ func (p *Parser) parseArg() (ast.Arg, error) {
 func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	// first get prefix to guess the expression kind
 	prefix, ok := p.prefixExpressionParsers[p.curToken.Type]
-	// not an prefix
+	// not a prefix
 	if !ok {
-		return ast.Null{}, fmt.Errorf("%s is not an prefix operator", p.curToken.Literal)
+		return ast.Null{}, fmt.Errorf("%s is not a prefix operator", p.curToken.Literal)
 	}
 	// we got the left
 	// e.g. for variable assignment it's $var
@@ -382,7 +410,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 func (p *Parser) parseVariable() (ast.Expression, error) {
 	// eat $
 	p.next()
-	variable := ast.VariableExpression{}
+	variable := &ast.VariableExpression{}
 	if err := p.assertTokenType(token.IDENT); err != nil {
 		return variable, err
 	}
@@ -409,13 +437,13 @@ func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
 	p.next()
 
 	switch left.(type) {
-	case ast.VariableExpression:
+	case *ast.VariableExpression:
 		// do noting, that's okay
 	default:
 		return ast.Null{}, fmt.Errorf("can not assign to %s", left.String())
 	}
 
-	as := ast.AssignmentExpression{
+	as := &ast.AssignmentExpression{
 		Left: left,
 	}
 	right, err := p.parseExpression(-1)
@@ -427,6 +455,18 @@ func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
 	return as, nil
 }
 
+func (p *Parser) parseBinaryExpression(left ast.Expression) (ast.Expression, error) {
+	// operator
+	op := p.curToken.Literal
+	p.next() // eat operator
+	right, err := p.parseExpression(-1)
+
+	if err != nil {
+		return nil, err
+	}
+	return &ast.BinaryExpression{Left: left, Op: op, Right: right}, nil
+}
+
 func (p *Parser) parseArrayInitialization() (ast.Expression, error) {
 	panic("implement me")
 }
@@ -435,7 +475,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, erro
 	// eat `[`
 	p.next()
 
-	indexExpression := ast.IndexExpression{Left: left}
+	indexExpression := ast.IndexExpression{ /*Left: left*/ }
 	value, err := p.parseExpression(-1)
 	if err != nil {
 		return indexExpression, err
@@ -457,7 +497,7 @@ func (p *Parser) parseStringLiteral() (ast.Expression, error) {
 }
 
 func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
-	ce := ast.ConditionalExpression{}
+	ce := &ast.ConditionalExpression{}
 	// eat `if`
 	p.next()
 
@@ -471,8 +511,17 @@ func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
 	if err != nil {
 		return ce, err
 	}
+	ce.Consequence = consequenceBlock
+	if p.curToken.Type == token.ELSE {
+		p.next() // eat `else`
+		alternativeBlock, err := p.parseBlock()
+		if err != nil {
+			return ce, err
+		}
+		ce.Alternative = alternativeBlock
+	}
 
-	panic(fmt.Sprintf("%v", consequenceBlock))
+	return ce, nil
 }
 
 func (p *Parser) parseGroupedExpression() (ast.Expression, error) {
@@ -491,8 +540,14 @@ func (p *Parser) parseGroupedExpression() (ast.Expression, error) {
 }
 
 func (p *Parser) parseIdentifier() (ast.Expression, error) {
-	defer p.next()
-	return ast.Identifier{Value: p.curToken.Literal}, nil
+	defer p.next() // eat IDENT
+	return &ast.Identifier{Value: p.curToken.Literal}, nil
+}
+
+func (p *Parser) parseInteger() (ast.Expression, error) {
+	defer p.next() // eat NUMBER
+	value, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
+	return &ast.IntegerLiteral{Value: value}, err
 }
 
 func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression, error) {
@@ -508,6 +563,45 @@ func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression,
 	return iof, nil
 }
 
+func (p *Parser) parseFunctionCall(left ast.Expression) (ast.Expression, error) {
+	ident, ok := left.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("expected token ident, %v given", left)
+	}
+	call := &ast.FunctionCall{Target: ident}
+	var err error
+	// parse all (<args>)
+	call.CallArgs, err = p.parseExpressionList()
+
+	return call, err
+}
+
+func (p *Parser) parseExpressionList() ([]ast.Expression, error) {
+	list := make([]ast.Expression, 0, 8)
+	p.next() // eat `(`
+	if p.curToken.Type == token.PARENTHESIS_CLOSING {
+		p.next() // eat `)`
+		return list, nil
+	}
+
+	for {
+		arg, err := p.parseExpression(-1)
+		if err != nil {
+			return list, err
+		}
+		list = append(list, arg)
+		if p.curToken.Type == token.PARENTHESIS_CLOSING {
+			p.next() // eat `)`
+			break
+		} else if p.curToken.Type == token.COMMA {
+			// eat ','
+			p.next()
+		}
+	}
+
+	return list, nil
+}
+
 func (p *Parser) parseObjectFetch(left ast.Expression) (ast.Expression, error) {
 	// eat `->`
 	p.next()
@@ -519,7 +613,7 @@ func (p *Parser) parseObjectFetch(left ast.Expression) (ast.Expression, error) {
 		return ast.PropertyDereference{Object: left, PropertyName: target.String()}, nil
 	}
 	methodCall := ast.MethodCall{Object: left, FunctionCall: ast.FunctionCall{
-		Target: ast.Identifier{Value: target.String()},
+		Target: &ast.Identifier{Value: target.String()},
 	}}
 	// eat `(`
 	p.next()

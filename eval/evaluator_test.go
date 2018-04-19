@@ -4,6 +4,8 @@ import (
 	"testing"
 	"github.com/pmukhin/gophp/ast"
 	"github.com/pmukhin/gophp/object"
+	"github.com/pmukhin/gophp/parser"
+	"github.com/pmukhin/gophp/scanner"
 )
 
 func TestEval(t *testing.T) {
@@ -153,6 +155,62 @@ func TestEval(t *testing.T) {
 		}
 	})
 
+	t.Run("evaluate bool expression and print", func(t *testing.T) {
+		p := parser.New(scanner.New([]rune(`
+			$is = 5 > 5
+			println($is)
+`)))
+		program, e := p.Parse()
+		if e != nil {
+			t.Error(e)
+		}
+		ctx := NewContext(nil, InternalFunctionTable)
+		_, e = Eval(program, ctx)
+		if e != nil {
+			t.Error(e)
+		}
+	})
+
+	t.Run("assignment of conditional", func(t *testing.T) {
+		p := &ast.Program{}
+		p.Statements = []ast.Statement{
+			&ast.ExpressionStatement{
+				Expression: &ast.AssignmentExpression{
+					Left: &ast.VariableExpression{Name: "result"},
+					Right: &ast.ConditionalExpression{
+						Condition: &ast.Identifier{Value: "true"},
+						Consequence: &ast.BlockStatement{
+							Statements: []ast.Statement{
+								&ast.ExpressionStatement{
+									Expression: &ast.IntegerLiteral{Value: 5},
+								},
+							},
+						},
+						Alternative: &ast.BlockStatement{
+							Statements: []ast.Statement{
+								&ast.ExpressionStatement{
+									Expression: &ast.IntegerLiteral{Value: 0},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		ctx := NewContext(nil, InternalFunctionTable)
+		_, e := Eval(p, ctx)
+		if e != nil {
+			t.Error(e)
+		}
+		if v, e := ctx.GetContextVar("result"); e != nil {
+			t.Error(e)
+		} else {
+			if v.(*object.IntegerObject).Value != 5 {
+				t.Errorf("expected $result to be 5")
+			}
+		}
+	})
+
 	// tested code:
 	// $result = println(7);
 	t.Run("simplest function call", func(t *testing.T) {
@@ -162,7 +220,7 @@ func TestEval(t *testing.T) {
 				Expression: &ast.AssignmentExpression{
 					Left: &ast.VariableExpression{Name: "result"},
 					Right: &ast.FunctionCall{
-						Target: ast.Identifier{Value: "println"},
+						Target: &ast.Identifier{Value: "println"},
 						CallArgs: []ast.Expression{
 							&ast.IntegerLiteral{Value: 7},
 						},
