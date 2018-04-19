@@ -7,6 +7,10 @@ import (
 	"fmt"
 )
 
+type state struct {
+	inFunction bool
+}
+
 var opMethods = map[string]string{
 	"+": "__add",
 	"-": "__sub",
@@ -25,6 +29,14 @@ var opMethods = map[string]string{
 	"|": "__or",
 }
 
+type returnObject struct {
+	value object.Object
+}
+
+func (returnObject) Class() object.Class { panic("implement me") }
+
+func (returnObject) Id() string { panic("implement me") }
+
 func classExists(class string) bool {
 	return false
 }
@@ -35,6 +47,12 @@ func getClass(class string) object.Class {
 
 func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
+	case *ast.ReturnStatement:
+		v, e := Eval(node.Value, ctx)
+		if e != nil {
+			return object.Null, e
+		}
+		return returnObject{value: v}, nil
 	case *ast.FunctionDeclarationExpression:
 		o := object.NewUserFunc(node.Name.Value, node.Args, node.Block)
 		e := ctx.GetFunctionTable().RegisterFunc(o)
@@ -58,7 +76,11 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		case *object.InternalFunction:
 			return realFun.Call(ctx, args...)
 		case *object.UserFunction:
-			return Eval(realFun.Block(), ctx)
+			funCtx := object.NewContext(ctx, ctx.GetFunctionTable())
+			for i, definedArg := range realFun.Args() {
+				funCtx.SetContextVar(definedArg.Name.Name, args[i])
+			}
+			return Eval(realFun.Block(), funCtx)
 		}
 	case *ast.ConditionalExpression:
 		condition, err := Eval(node.Condition, ctx)
@@ -107,6 +129,16 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		}
 		return nil, fmt.Errorf("operator %s (method %s) is not defined on type %s",
 			node.Op, opMethods[node.Op], l.Class().Name())
+	case *ast.IndexExpression:
+		l, e := Eval(node.Left, ctx)
+		if e != nil {
+			return nil, e
+		}
+		index, e := Eval(node.Index, ctx)
+		if i := l.Class().Methods().Find("__index"); i != nil {
+			return i.Call(l, index)
+		}
+		return object.Null, fmt.Errorf("%v does not support indexing", l.Class().Name())
 	case *ast.IntegerLiteral:
 		return object.IntegerClass.InternalConstructor(node.Value)
 	case *ast.StringLiteral:
@@ -148,18 +180,7 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, ctx)
 	case *ast.BlockStatement:
-		var r object.Object
-		for _, st := range node.Statements {
-			var e error
-			r, e = Eval(st, ctx)
-			if e != nil {
-				return r, e
-			}
-		}
-		if r == nil {
-			return object.Null, nil
-		}
-		return r, nil
+		return evalBlock(ctx, node)
 	case *ast.Program:
 		var (
 			r object.Object
