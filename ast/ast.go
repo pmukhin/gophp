@@ -369,6 +369,7 @@ func (ArrayLiteral) expressionNode() {}
 // IndexExpression represents expressions like
 // [$someVal] or [0]
 type IndexExpression struct {
+	Left  Expression
 	Index Expression
 }
 
@@ -389,7 +390,7 @@ func (IndexExpression) TokenLiteral() string {
 }
 
 func (ie IndexExpression) String() string {
-	return "[" + ie.Index.String() + "]"
+	return ie.Left.String() + "[" + ie.Index.String() + "]"
 }
 
 // expressionNode ...
@@ -842,3 +843,29 @@ func (ns NamespaceStatement) String() string {
 
 // statementNode ...
 func (NamespaceStatement) statementNode() {}
+
+type ReturnStatement struct {
+	Value Expression
+}
+
+func (ReturnStatement) Pos() int {
+	panic("implement me")
+}
+
+func (ReturnStatement) End() int {
+	panic("implement me")
+}
+
+func (ReturnStatement) TokenLiteral() string {
+	panic("implement me")
+}
+
+func (re ReturnStatement) String() string {
+	return "return " + re.Value.String()
+}
+
+func (ReturnStatement) Accept(Visitor) {
+	panic("implement me")
+}
+
+func (ReturnStatement) statementNode() {}
