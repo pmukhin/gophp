@@ -12,7 +12,7 @@ import (
 
 func run(t *testing.T, input string, expectations []ast.Statement) {
 	scn := scanner.New([]rune(input))
-	parser := Parser{__scn: scn}
+	parser := Parser{scn: scn}
 	parser.init()
 
 	program, err := parser.Parse()

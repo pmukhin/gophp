@@ -26,12 +26,12 @@ type Parser struct {
 	prefixExpressionParsers map[scanner.TokenType]prefixParser
 	infixExpressionParsers  map[scanner.TokenType]infixParser
 
-	__scn *scanner.Scanner
+	scn *scanner.Scanner
 }
 
 func New(s *scanner.Scanner) *Parser {
 	p := new(Parser)
-	p.__scn = s
+	p.scn = s
 	p.init()
 
 	return p
@@ -39,7 +39,7 @@ func New(s *scanner.Scanner) *Parser {
 
 func (p *Parser) next() {
 	if p.nextToken == nil {
-		tok := p.__scn.Next()
+		tok := p.scn.Next()
 		p.curToken = tok
 	} else {
 		p.curToken = *p.nextToken
@@ -49,7 +49,7 @@ func (p *Parser) next() {
 
 func (p *Parser) peek() scanner.Token {
 	if p.nextToken == nil {
-		tok := p.__scn.Next()
+		tok := p.scn.Next()
 		p.nextToken = &tok
 
 		return tok
