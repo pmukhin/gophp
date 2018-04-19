@@ -1,4 +1,4 @@
-package eval
+package context
 
 import (
 	"github.com/pmukhin/gophp/object"
@@ -10,7 +10,6 @@ type Context interface {
 
 	GetContextVar(string) (object.Object, error)
 	SetContextVar(string, object.Object)
-
 	GetFunctionTable() *FunctionTable
 }
 
