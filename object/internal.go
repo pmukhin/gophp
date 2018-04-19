@@ -16,24 +16,15 @@ func init() {
 			return Null, errors.New("println expects at least 1 argument")
 		}
 		for _, a := range args {
-			if a.Class().Name() == "String" {
-				fmt.Printf("%s", a.(*StringObject).Value)
+			s, e := ToString(a)
+			if e != nil {
+				fmt.Printf("<%s> %v", s.Class().Name(), s.Class())
 				continue
 			}
-
-			toString := a.Class().Methods().Find("__toString")
-			if toString == nil {
-				fmt.Printf("%v", a)
-			} else {
-				s, e := toString.Call(a)
-				if e != nil {
-					return Null, e
-				}
-				// @todo print String object
-				fmt.Printf("%v", s)
-			}
+			fmt.Print(s.Value)
 		}
-		fmt.Println()
+
+		fmt.Println() // add '\n'
 		return Null, nil
 	}))
 

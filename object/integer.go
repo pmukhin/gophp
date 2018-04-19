@@ -2,20 +2,16 @@ package object
 
 import "fmt"
 
-func infer(this Object, os ...Object) (*IntegerObject, *IntegerObject, error) {
-	if len(os) != 1 {
-		return nil, nil, fmt.Errorf("__add takes exactly one parameter, %d given", len(os))
+func infer(this Object, args ...Object) (*IntegerObject, *IntegerObject, error) {
+	if len(args) != 1 {
+		return nil, nil, fmt.Errorf("__add takes exactly one parameter, %d given", len(args))
 	}
 	i, ok := this.(*IntegerObject)
 	if !ok {
 		panic("?")
 	}
-	switch right := os[0].(type) {
-	case *IntegerObject:
-		return i, right, nil
-	default:
-		return nil, nil, fmt.Errorf("unsupported operand %v", os[0])
-	}
+	r, e := ToInteger(args[0])
+	return i, r, e
 }
 
 func iEqual(this Object, os ...Object) (Object, error) {
@@ -35,6 +31,17 @@ func isGreater(this Object, os ...Object) (Object, error) {
 		return Null, e
 	}
 	if l.Value > r.Value {
+		return True, nil
+	}
+	return False, nil
+}
+
+func isLess(this Object, os ...Object) (Object, error) {
+	l, r, e := infer(this, os...)
+	if e != nil {
+		return Null, e
+	}
+	if l.Value < r.Value {
 		return True, nil
 	}
 	return False, nil
@@ -82,6 +89,11 @@ func iToBoolean(this Object, os ...Object) (Object, error) {
 	return True, nil
 }
 
+func iToString(this Object, args ...Object) (Object, error) {
+	i := this.(*IntegerObject)
+	return &StringObject{Value: fmt.Sprintf("%d", i.Value)}, nil
+}
+
 var (
 	ic = func(value interface{}) (Object, error) {
 		v, ok := value.(int64)
@@ -98,6 +110,8 @@ var (
 		"__div":       newMethod(iDiv, VisibilityPublic),
 		"__equal":     newMethod(iEqual, VisibilityPublic),
 		"__gt":        newMethod(isGreater, VisibilityPublic),
+		"__lt":        newMethod(isLess, VisibilityPublic),
+		"__toString":  newMethod(iToString, VisibilityPublic),
 		"__toBoolean": newMethod(iToBoolean, VisibilityPublic),
 	}
 
