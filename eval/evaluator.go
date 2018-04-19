@@ -109,6 +109,8 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 			node.Op, opMethods[node.Op], l.Class().Name())
 	case *ast.IntegerLiteral:
 		return object.IntegerClass.InternalConstructor(node.Value)
+	case *ast.StringLiteral:
+		return &object.StringObject{Value: node.Value}, nil
 	case *ast.VariableExpression:
 		v, e := ctx.GetContextVar(node.Name)
 		if e != nil {

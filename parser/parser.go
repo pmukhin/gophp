@@ -496,8 +496,8 @@ func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, erro
 }
 
 func (p *Parser) parseStringLiteral() (ast.Expression, error) {
-	defer p.next()
-	return ast.StringLiteral{Value: p.curToken.Literal}, nil
+	defer p.next() // eat string
+	return &ast.StringLiteral{Value: p.curToken.Literal}, nil
 }
 
 func (p *Parser) parseConditionalExpression() (ast.Expression, error) {

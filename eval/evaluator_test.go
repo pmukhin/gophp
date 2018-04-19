@@ -155,12 +155,11 @@ func TestEval(t *testing.T) {
 		}
 	})
 
-	t.Run("evaluate user function", func(t *testing.T) {
+	t.Run("print string var", func(t *testing.T) {
 		p := parser.New(scanner.New([]rune(`
-			function test() {}
-			$var = test();
-			println($var)
-`)))
+			$str = 'hello'
+			println($str)
+		`)))
 		program, e := p.Parse()
 		if e != nil {
 			t.Error(e)
@@ -170,7 +169,23 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
+	})
 
+	t.Run("evaluate user function", func(t *testing.T) {
+		p := parser.New(scanner.New([]rune(`
+			function test() {}
+			$var = test();
+			println($var)
+		`)))
+		program, e := p.Parse()
+		if e != nil {
+			t.Error(e)
+		}
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		_, e = Eval(program, ctx)
+		if e != nil {
+			t.Error(e)
+		}
 	})
 
 	t.Run("evaluate bool expression and print", func(t *testing.T) {
