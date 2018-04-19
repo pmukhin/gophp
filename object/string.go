@@ -3,6 +3,7 @@ package object
 import (
 	"strings"
 	"strconv"
+	"errors"
 )
 
 func stringConcat(this Object, args ...Object) (Object, error) {
@@ -41,11 +42,29 @@ func toInt(this Object, args ...Object) (Object, error) {
 	return &IntegerObject{Value: i}, nil
 }
 
+func index(this Object, args ...Object) (Object, error) {
+	l := this.(*StringObject)
+	if len(args) != 1 {
+		panic("error")
+	}
+	arg, e := ToInteger(args[0])
+	if e != nil {
+		return nil, e
+	}
+	r := []rune(l.Value)
+	if len(r) <= int(arg.Value) {
+		return Null, errors.New("index error")
+	}
+
+	return &StringObject{Value: string(r[arg.Value])}, nil
+}
+
 var (
 	m = map[string]Method{
 		"__add":   newMethod(stringConcat, VisibilityPublic),
 		"__mul":   newMethod(repeat, VisibilityPublic),
 		"__toInt": newMethod(toInt, VisibilityPublic),
+		"__index": newMethod(index, VisibilityPublic),
 	}
 
 	stringClass = internalClass{
