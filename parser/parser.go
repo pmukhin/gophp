@@ -122,13 +122,20 @@ func (p *Parser) parseStatement() (st ast.Statement, err error) {
 	case token.EOF:
 		err = io.EOF
 		return
-		// top
 	case token.USE:
+		// use NameSpace\\Class;
 		st, err = p.parseUseStatement()
 	case token.NAMESPACE:
+		// namespace NameSpace;
 		st, err = p.parseNamespaceStatement()
+	case token.RETURN:
+		// return $value;
+		st, err = p.parseReturnStatement()
 	default:
 		st, err = p.parseExpressionStatement()
+	}
+	if p.curToken.Type == token.SEMICOLON {
+		p.next() // eat `;` if it's there
 	}
 	return
 }
@@ -140,9 +147,6 @@ func (p *Parser) parseExpressionStatement() (es *ast.ExpressionStatement, err er
 		return es, err
 	}
 	es.Expression = expression
-	if p.curToken.Type == token.SEMICOLON {
-		p.next() // eat `;` if it's there
-	}
 
 	return
 }
@@ -269,6 +273,15 @@ func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	return fun, err
 }
 
+func (p *Parser) parseReturnStatement() (ast.Statement, error) {
+	p.next() // eat `return`
+	val, e := p.parseExpression(-1)
+	if e != nil {
+		return nil, e
+	}
+	return &ast.ReturnStatement{Value: val}, nil
+}
+
 func (p *Parser) parseArgs() ([]ast.Arg, error) {
 	args := make([]ast.Arg, 0, 4)
 	p.next() // eat `(`
@@ -328,7 +341,7 @@ func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
 		goto exit
 	}
 	for {
-		st, err := p.parseExpressionStatement()
+		st, err := p.parseStatement()
 		if err != nil {
 			return block, err
 		}
@@ -479,7 +492,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, erro
 	// eat `[`
 	p.next()
 
-	indexExpression := ast.IndexExpression{ /*Left: left*/ }
+	indexExpression := &ast.IndexExpression{Left: left}
 	value, err := p.parseExpression(-1)
 	if err != nil {
 		return indexExpression, err
