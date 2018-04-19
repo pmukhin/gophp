@@ -8,6 +8,20 @@ import (
 	"github.com/pmukhin/gophp/scanner"
 )
 
+func checkContextVariableInt(t *testing.T, ctx object.Context, name string, value int64) {
+	if el, err := ctx.GetContextVar(name); err != nil {
+		t.Error(err)
+	} else {
+		if e, ok := el.(*object.IntegerObject); !ok {
+			t.Errorf("%v is not Integer, it's %s", e.Class().Name())
+		} else {
+			if e.Value != value {
+				t.Errorf("$%s is %d, not %d", name, e.Value, value)
+			}
+		}
+	}
+}
+
 func TestEval(t *testing.T) {
 	// tested code:
 	// $variableInteger = 5;
@@ -157,6 +171,21 @@ func TestEval(t *testing.T) {
 
 	t.Run("print string var", func(t *testing.T) {
 		p := parser.New(scanner.New([]rune(`
+			println(5)
+		`)))
+		program, e := p.Parse()
+		if e != nil {
+			t.Error(e)
+		}
+		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		_, e = Eval(program, ctx)
+		if e != nil {
+			t.Error(e)
+		}
+	})
+
+	t.Run("print string var", func(t *testing.T) {
+		p := parser.New(scanner.New([]rune(`
 			$str = 'hello'
 			println($str)
 		`)))
@@ -235,13 +264,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		if v, e := ctx.GetContextVar("result"); e != nil {
-			t.Error(e)
-		} else {
-			if v.(*object.IntegerObject).Value != 5 {
-				t.Errorf("expected $result to be 5")
-			}
-		}
+		checkContextVariableInt(t, ctx, "result", 5)
 	})
 
 	// tested code:
@@ -274,4 +297,55 @@ func TestEval(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestEval_Fibonacci_OldSyntax(t *testing.T) {
+	p := parser.New(scanner.New([]rune(`
+			function fib($n) { 
+				if $n < 2 { 
+					return 1; 
+				} else { 
+					return fib($n - 2) + fib($n - 1); 
+				} 
+			}
+			$result1 = fib(1);
+			$result2 = fib(2);
+			$result3 = fib(3);
+	`)))
+	program, e := p.Parse()
+	if e != nil {
+		t.Error(e)
+	}
+	ctx := object.NewContext(nil, object.InternalFunctionTable)
+	_, e = Eval(program, ctx)
+	if e != nil {
+		t.Error(e)
+	}
+	checkContextVariableInt(t, ctx, "result1", 1)
+	checkContextVariableInt(t, ctx, "result2", 2)
+	checkContextVariableInt(t, ctx, "result3", 3)
+}
+
+func TestEval_Fibonacci_NewSyntax(t *testing.T) {
+	p := parser.New(scanner.New([]rune(`
+			function fib($n) { if $n < 2 { $n } else { fib($n - 2) + fib($n - 1) } }
+			$result1 = fib(0)
+			$result2 = fib(1)
+			$result3 = fib(2)
+			$result4 = fib(3)
+	`)))
+	program, e := p.Parse()
+	if e != nil {
+		t.Error(e)
+	}
+	ctx := object.NewContext(nil, object.InternalFunctionTable)
+	_, e = Eval(program, ctx)
+	if e != nil {
+		t.Error(e)
+	}
+	checkContextVariableInt(t, ctx, "result1", 0)
+	checkContextVariableInt(t, ctx, "result2", 1)
+	checkContextVariableInt(t, ctx, "result3", 1)
+	checkContextVariableInt(t, ctx, "result4", 2)
+
 }
