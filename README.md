@@ -18,5 +18,5 @@ $antotherVar = 365
 ```php
 $booleanVar = if (is<Iterable>($array)) { someResult() } else { someOtherResult() }
 $integerVar = try { someHeavyCalculation() } catch (MemoryException $e) { 0 }
-$some = $booleanVar.as<Integer>() + $integerVar
+$some = $booleanVar.to<Integer>() + $integerVar
 ```
