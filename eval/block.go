@@ -6,7 +6,7 @@ import (
 )
 
 func evalBlock(ctx object.Context, node *ast.BlockStatement) (object.Object, error) {
-	var ret object.Object = returnObject{}
+	var ret object.Object = nil
 
 	for _, st := range node.Statements {
 		r, e := Eval(st, ctx)
@@ -22,8 +22,8 @@ func evalBlock(ctx object.Context, node *ast.BlockStatement) (object.Object, err
 	}
 
 	if ret == nil {
-		return returnObject{value: object.Null}, nil
+		ret = returnObject{value: object.Null}
 	}
 
-	return returnObject{value: object.Null}, nil
+	return ret, nil
 }

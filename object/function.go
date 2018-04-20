@@ -2,13 +2,37 @@ package object
 
 import (
 	"github.com/pmukhin/gophp/ast"
+	"fmt"
+	"strings"
+	"encoding/base64"
 )
 
+func funToString(this Object, args ...Object) (Object, error) {
+	if len(args) != 0 {
+		return Null, fmt.Errorf("expected 0 arguments, %d given", len(args))
+	}
+	f := this.(FunctionObject)
+	argsString := make([]string, len(f.Args()))
+	for i, arg := range f.Args() {
+		str := fmt.Sprintf(arg.String())
+		argsString[i] = str
+	}
+	representation := fmt.Sprintf("<object of type %s, %s(%s): [NOT IMPLEMENTED]>", this.Class().Name(),
+		f.Name(), strings.Join(argsString, ", "))
+
+	return &StringObject{Value: representation}, nil
+}
+
 var (
+	methods = map[string]Method{
+		"__toString": newMethod(funToString, VisibilityPublic),
+	}
+
 	functionClass = internalClass{
-		name:     "Function",
-		final:    true,
-		abstract: false,
+		name:      "Function",
+		final:     true,
+		abstract:  false,
+		methodSet: newMethodSet(methods),
 	}
 )
 
@@ -53,6 +77,19 @@ type UserFunction struct {
 	name  string
 	args  []ast.Arg
 	block *ast.BlockStatement
+}
+
+// NewAnonymousFunc ...
+func NewAnonymousFunc(args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+	b := make([]byte, 8)
+	for i := 0; i < 8; i++ {
+		b[i] = byte(i<<2*31 + i)
+	}
+	return &UserFunction{
+		name:  base64.StdEncoding.EncodeToString(b),
+		args:  args,
+		block: block,
+	}
 }
 
 func NewUserFunc(ns string, name string, args []ast.Arg, block *ast.BlockStatement) FunctionObject {

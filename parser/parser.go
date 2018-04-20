@@ -289,9 +289,9 @@ func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	if p.curToken.Type == token.IDENT {
 		// give function a name
 		fun.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		// just for making it explicit
-		fun.Anonymous = false
 		p.next() // eat IDENT
+	} else {
+		fun.Anonymous = true
 	}
 
 	e := p.assertTokenType(token.PARENTHESIS_OPENING) // must be `(`
@@ -658,13 +658,16 @@ func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression,
 }
 
 func (p *Parser) parseFunctionCall(left ast.Expression) (ast.Expression, error) {
-	ident, ok := left.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("expected token ident, %v given", left)
+	call := &ast.FunctionCall{Token: p.curToken}
+	switch def := left.(type) {
+	case *ast.Identifier:
+		call.Target = def
+	case *ast.VariableExpression:
+		call.Target = def
+	default:
+		return nil, fmt.Errorf("expected either ident or variable %v given", left)
 	}
-	call := &ast.FunctionCall{Target: ident, Token: p.curToken}
 	var err error
-	// parse all (<args>)
 	call.CallArgs, err = p.parseExpressionList()
 
 	return call, err

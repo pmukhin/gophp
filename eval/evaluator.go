@@ -57,6 +57,43 @@ func getClass(class string) object.Class {
 	return nil
 }
 
+func evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Expression, ctx object.Context) (object.Object, error) {
+	callName := name.Value
+	if use, ok := state.uses[callName]; ok {
+		callName = use
+	}
+	fun, e := ctx.GetFunctionTable().Find(state.namespace, callName)
+	if e != nil {
+		return nil, e
+	}
+	args := make([]object.Object, len(callArgs))
+	for i, a := range callArgs {
+		args[i], e = Eval(a, ctx)
+		if e != nil {
+			return nil, e
+		}
+	}
+	switch realFun := fun.(type) {
+	case *object.InternalFunction:
+		return realFun.Call(ctx, args...)
+	case *object.UserFunction:
+		funCtx := object.NewContext(ctx, ctx.GetFunctionTable())
+		for i, definedArg := range realFun.Args() {
+			funCtx.SetContextVar(definedArg.Name.Name, args[i])
+		}
+		return Eval(realFun.Block(), funCtx)
+	default:
+		panic("unexpected function type")
+	}
+}
+
+func unpackReturnObject(o object.Object, err error) (object.Object, error) {
+	if v, ok := o.(returnObject); ok {
+		return v.value, err
+	}
+	return o, err
+}
+
 func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
 	case *ast.NamespaceStatement:
@@ -72,33 +109,21 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		}
 		return returnObject{value: v}, nil
 	case *ast.FunctionDeclarationExpression:
+		if node.Anonymous == true {
+			return object.NewAnonymousFunc(node.Args, node.Block), nil
+		}
 		return object.Null, ctx.GetFunctionTable().
 			RegisterFunc(object.NewUserFunc(state.namespace, node.Name.Value, node.Args, node.Block))
 	case *ast.FunctionCall:
-		callName := node.Target.Value
-		if use, ok := state.uses[callName]; ok {
-			callName = use
+		if registeredFuncName, ok := node.Target.(*ast.Identifier); ok {
+			return unpackReturnObject(evalRegisteredFunc(registeredFuncName, node.CallArgs, ctx))
 		}
-		fun, e := ctx.GetFunctionTable().Find(state.namespace, callName)
-		if e != nil {
-			return nil, e
-		}
-		args := make([]object.Object, len(node.CallArgs))
-		for i, a := range node.CallArgs {
-			args[i], e = Eval(a, ctx)
-			if e != nil {
-				return nil, e
+		if anonymous, ok := node.Target.(ast.Expression); ok {
+			resolve, err := Eval(anonymous, ctx)
+			if err != nil {
+				return object.Null, err
 			}
-		}
-		switch realFun := fun.(type) {
-		case *object.InternalFunction:
-			return realFun.Call(ctx, args...)
-		case *object.UserFunction:
-			funCtx := object.NewContext(ctx, ctx.GetFunctionTable())
-			for i, definedArg := range realFun.Args() {
-				funCtx.SetContextVar(definedArg.Name.Name, args[i])
-			}
-			return Eval(realFun.Block(), funCtx)
+			return unpackReturnObject(Eval(resolve.(object.FunctionObject).Block(), ctx))
 		}
 	case *ast.ConditionalExpression:
 		condition, err := Eval(node.Condition, ctx)
