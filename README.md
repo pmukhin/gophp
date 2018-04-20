@@ -34,7 +34,7 @@ function is<T>($o): Boolean { $o instanceof T }
 
 ### Everything (almost) is epxression
 ```php
-$booleanVar = if (is<Iterable>($array)) { someResult() } else { someOtherResult() }
+$booleanVar = if is<Iterable>($array) { someResult() } else { someOtherResult() }
 $integerVar = try { someHeavyCalculation() } catch (MemoryException $e) { 0 }
 $some = $booleanVar->to<Integer>() + $integerVar
 ```
