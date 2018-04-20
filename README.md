@@ -9,6 +9,11 @@ $array = [1, 2, 3]
 $antotherVar = 365
 ```
 
+### Type is a constant object
+```php
+println(dump(Integer)) // <type 'ClassInteger'>
+```
+
 ### Top level constants
 ```php
 namespace math
