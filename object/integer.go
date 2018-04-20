@@ -55,6 +55,14 @@ func iAdd(this Object, os ...Object) (Object, error) {
 	return &IntegerObject{Value: l.Value + r.Value}, nil
 }
 
+func iMod(this Object, os ...Object) (Object, error) {
+	l, r, e := infer(this, os...)
+	if e != nil {
+		return Null, e
+	}
+	return &IntegerObject{Value: l.Value % r.Value}, nil
+}
+
 func iSub(this Object, os ...Object) (Object, error) {
 	l, r, e := infer(this, os...)
 	if e != nil {
@@ -111,6 +119,7 @@ var (
 		"__equal":     newMethod(iEqual, VisibilityPublic),
 		"__gt":        newMethod(isGreater, VisibilityPublic),
 		"__lt":        newMethod(isLess, VisibilityPublic),
+		"__mod":       newMethod(iMod, VisibilityPublic),
 		"__toString":  newMethod(iToString, VisibilityPublic),
 		"__toBoolean": newMethod(iToBoolean, VisibilityPublic),
 	}

@@ -38,11 +38,30 @@ func run(t *testing.T, input string, expectations []ast.Statement) {
 	}
 }
 
+func TestParser_Parse_ArithmeticPrecedence(t *testing.T) {
+	scn := scanner.New([]rune(`println(5 + 5 * 3)`))
+	parser := New(scn)
+	_, e := parser.Parse()
+	if e != nil {
+		t.Error(e)
+	}
+}
+
+func TestParser_Parse_Incomplete(t *testing.T) {
+	scn := scanner.New([]rune(`function fib($n) { if $n < 2 { $n } else { fib($n-1) + fib($n-2) }`))
+	parser := New(scn)
+
+	_, err := parser.Parse()
+	if err == nil {
+		t.Errorf("must return error")
+	}
+}
+
 func TestParser_ParseSimpleConditional_FunctionDeclaration(t *testing.T) {
 	input := `function first() {}`
 	run(t, input, []ast.Statement{
 		&ast.ExpressionStatement{
-			&ast.FunctionDeclarationExpression{
+			Expression: &ast.FunctionDeclarationExpression{
 				Name:  &ast.Identifier{Value: "first"},
 				Args:  []ast.Arg{},
 				Block: &ast.BlockStatement{},
@@ -55,7 +74,7 @@ func TestParser_ParseSimpleConditional_NewStyle(t *testing.T) {
 	input := `if (true) { 5 } else { 0 }`
 	run(t, input, []ast.Statement{
 		&ast.ExpressionStatement{
-			&ast.ConditionalExpression{
+			Expression: &ast.ConditionalExpression{
 				Condition: &ast.BooleanExpression{Value: true},
 				Consequence: &ast.BlockStatement{
 					Statements: []ast.Statement{
@@ -80,7 +99,7 @@ func TestParse_ParseFunctionCall(t *testing.T) {
 	input := `println($var);`
 	run(t, input, []ast.Statement{
 		&ast.ExpressionStatement{
-			&ast.FunctionCall{
+			Expression: &ast.FunctionCall{
 				Target: &ast.Identifier{Value: "println"},
 				CallArgs: []ast.Expression{
 					&ast.VariableExpression{Name: "var"},
@@ -94,7 +113,7 @@ func TestParser_ParseAssignment(t *testing.T) {
 	input := `$var = 5;`
 	run(t, input, []ast.Statement{
 		&ast.ExpressionStatement{
-			&ast.AssignmentExpression{
+			Expression: &ast.AssignmentExpression{
 				Left:  &ast.VariableExpression{Name: "var"},
 				Right: &ast.IntegerLiteral{Value: 5},
 			},

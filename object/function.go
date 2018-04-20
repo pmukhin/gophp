@@ -55,9 +55,17 @@ type UserFunction struct {
 	block *ast.BlockStatement
 }
 
-func NewUserFunc(name string, args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+func NewUserFunc(ns string, name string, args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+	var uf string
+
+	if ns == "" {
+		uf = name
+	} else {
+		uf = ns + "\\" + name
+	}
+
 	return &UserFunction{
-		name:  name,
+		name:  uf,
 		args:  args,
 		block: block,
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestPrinter_Result_ListOfStatements(t *testing.T) {
-	program := &ast.Program{}
+	program := &ast.Module{}
 	program.Statements = []ast.Statement{
 		&ast.ExpressionStatement{
 			Expression: &ast.AssignmentExpression{

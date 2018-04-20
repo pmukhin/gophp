@@ -10,8 +10,23 @@ import (
 	"strconv"
 )
 
-var precedences = map[scanner.TokenType]int{
-	token.EQUAL: 0,
+var precedences = map[token.TokenType]int{
+	token.CURLY_OPEN: 4,
+
+	token.MOD:                 0,
+	token.EQUAL:               0,
+	token.IS_SMALLER:          0,
+	token.IS_SMALLER_OR_EQUAL: 0,
+	token.IS_GREATER:          0,
+	token.IS_GREATER_OR_EQUAL: 0,
+
+	token.PARENTHESIS_OPENING: 1,
+	//
+	token.PLUS:  1,
+	token.MINUS: 1,
+	// biggest
+	token.DIV: 100,
+	token.MUL: 100,
 }
 
 type (
@@ -20,11 +35,11 @@ type (
 )
 
 type Parser struct {
-	nextToken *scanner.Token
-	curToken  scanner.Token
+	nextToken *token.Token
+	curToken  token.Token
 
-	prefixExpressionParsers map[scanner.TokenType]prefixParser
-	infixExpressionParsers  map[scanner.TokenType]infixParser
+	prefixExpressionParsers map[token.TokenType]prefixParser
+	infixExpressionParsers  map[token.TokenType]infixParser
 
 	scn *scanner.Scanner
 }
@@ -47,7 +62,7 @@ func (p *Parser) next() {
 	}
 }
 
-func (p *Parser) peek() scanner.Token {
+func (p *Parser) peek() token.Token {
 	if p.nextToken == nil {
 		tok := p.scn.Next()
 		p.nextToken = &tok
@@ -58,7 +73,7 @@ func (p *Parser) peek() scanner.Token {
 }
 
 func (p *Parser) init() {
-	p.prefixExpressionParsers = make(map[scanner.TokenType]prefixParser)
+	p.prefixExpressionParsers = make(map[token.TokenType]prefixParser)
 	// prefix parsers
 	p.prefixExpressionParsers[token.VAR] = p.parseVariable
 	p.prefixExpressionParsers[token.CONST] = p.parseConstant
@@ -71,8 +86,9 @@ func (p *Parser) init() {
 	p.prefixExpressionParsers[token.PARENTHESIS_OPENING] = p.parseGroupedExpression
 	p.prefixExpressionParsers[token.IDENT] = p.parseIdentifier
 	p.prefixExpressionParsers[token.NUMBER] = p.parseInteger
+	p.prefixExpressionParsers[token.FOR] = p.parseLoop
 
-	p.infixExpressionParsers = make(map[scanner.TokenType]infixParser)
+	p.infixExpressionParsers = make(map[token.TokenType]infixParser)
 	// infix parsers
 	p.infixExpressionParsers[token.EQUAL] = p.parseAssignment
 
@@ -80,6 +96,7 @@ func (p *Parser) init() {
 	p.infixExpressionParsers[token.MINUS] = p.parseBinaryExpression
 	p.infixExpressionParsers[token.MUL] = p.parseBinaryExpression
 	p.infixExpressionParsers[token.DIV] = p.parseBinaryExpression
+	p.infixExpressionParsers[token.MOD] = p.parseBinaryExpression
 
 	p.infixExpressionParsers[token.IS_GREATER] = p.parseBinaryExpression
 	p.infixExpressionParsers[token.IS_GREATER_OR_EQUAL] = p.parseBinaryExpression
@@ -100,8 +117,8 @@ func (p *Parser) init() {
 }
 
 // Parse
-func (p *Parser) Parse() (*ast.Program, error) {
-	program := &ast.Program{Statements: make([]ast.Statement, 0, 256)}
+func (p *Parser) Parse() (*ast.Module, error) {
+	program := &ast.Module{Statements: make([]ast.Statement, 0, 256)}
 	for {
 		st, err := p.parseStatement()
 		if err != nil {
@@ -117,7 +134,32 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	return program, nil
 }
 
+func (p *Parser) skipComment() {
+	for p.curToken.Type == token.COMMENT {
+		p.next()
+	}
+}
+
+func (p *Parser) parseLoop() (ast.Expression, error) {
+	p.next() // eat `for`
+
+	if p.curToken.Type == token.EACH {
+		foreach := &ast.ForEachExpression{Token: p.curToken}
+		p.eatOfType(token.PARENTHESIS_OPENING)
+		array, err := p.parseExpression(-1)
+		if err != nil {
+			return nil, err
+		}
+		foreach.Array = array
+
+		return foreach, nil
+	}
+
+	panic("dsf")
+}
+
 func (p *Parser) parseStatement() (st ast.Statement, err error) {
+	p.skipComment()
 	switch p.curToken.Type {
 	case token.EOF:
 		err = io.EOF
@@ -134,9 +176,11 @@ func (p *Parser) parseStatement() (st ast.Statement, err error) {
 	default:
 		st, err = p.parseExpressionStatement()
 	}
+
 	if p.curToken.Type == token.SEMICOLON {
 		p.next() // eat `;` if it's there
 	}
+
 	return
 }
 
@@ -151,12 +195,13 @@ func (p *Parser) parseExpressionStatement() (es *ast.ExpressionStatement, err er
 	return
 }
 
-func (p *Parser) eatOfType(tokenType scanner.TokenType) error {
+// eatOfType ...
+func (p *Parser) eatOfType(tokenType token.TokenType) error {
 	p.next()
 	return p.assertTokenType(tokenType)
 }
 
-func (p *Parser) assertTokenType(tokenType scanner.TokenType) error {
+func (p *Parser) assertTokenType(tokenType token.TokenType) error {
 	if p.curToken.Type != tokenType {
 		return fmt.Errorf("expected token %d, %s given", tokenType, p.curToken.Literal)
 	}
@@ -165,7 +210,8 @@ func (p *Parser) assertTokenType(tokenType scanner.TokenType) error {
 
 // parseUseStatement parses statements like
 // `use Symfony\Component\HttpFoundation\Response;`
-func (p *Parser) parseNamespaceStatement() (ns ast.NamespaceStatement, err error) {
+func (p *Parser) parseNamespaceStatement() (ns *ast.NamespaceStatement, err error) {
+	ns = new(ast.NamespaceStatement)
 	namespace := make([]string, 0, 8)
 	for {
 		p.next()
@@ -197,6 +243,7 @@ func (p *Parser) parseNamespaceStatement() (ns ast.NamespaceStatement, err error
 // parseUseStatement parses statements like
 // `use Symfony\Component\HttpFoundation\Response;`
 func (p *Parser) parseUseStatement() (us ast.UseStatement, err error) {
+	us.Token = p.curToken
 	namespace := make([]string, 0, 8)
 	for {
 		p.next()
@@ -229,13 +276,13 @@ func (p *Parser) parseUseStatement() (us ast.UseStatement, err error) {
 
 // parseFunctionDeclaration
 func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
+	fun := &ast.FunctionDeclarationExpression{Token: p.curToken}
 	p.next() // eat `function`
-	fun := &ast.FunctionDeclarationExpression{}
 
 	// function has a name
 	if p.curToken.Type == token.IDENT {
 		// give function a name
-		fun.Name = &ast.Identifier{Value: p.curToken.Literal}
+		fun.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 		// just for making it explicit
 		fun.Anonymous = false
 		p.next() // eat IDENT
@@ -331,7 +378,7 @@ func (p *Parser) parseReturnType() (*ast.Identifier, error) {
 	returnType := p.curToken.Literal
 	p.next() // eat IDENT
 	// token.IDENT is return type
-	return &ast.Identifier{Value: returnType}, nil
+	return &ast.Identifier{Token: p.curToken, Value: returnType}, nil
 }
 
 func (p *Parser) parseBlock() (*ast.BlockStatement, error) {
@@ -364,21 +411,20 @@ func (p *Parser) parseTypedArg() (arg ast.Arg, err error) {
 	if arg, err = p.parseArg(); err != nil {
 		return
 	}
-
-	arg.Type = &ast.Identifier{Value: typeName}
+	arg.Type = &ast.Identifier{Value: typeName, Token: p.curToken}
 	return
 }
 
 // parseArg parses untyped arg like `$value = "someDefaultString"`
 func (p *Parser) parseArg() (ast.Arg, error) {
-	arg := ast.Arg{}
-	p.next()
+	arg := ast.Arg{Token: p.curToken}
+	p.next() // eat `$`
 	// should get $`string_` here
 	if err := p.assertTokenType(token.IDENT); err != nil {
 		return arg, err
 	}
 	// assign name
-	arg.Name = ast.VariableExpression{Name: p.curToken.Literal}
+	arg.Name = ast.VariableExpression{Name: p.curToken.Literal, Token: p.curToken}
 
 	if p.peek().Type == token.EQUAL {
 		// we have assign
@@ -393,12 +439,19 @@ func (p *Parser) parseArg() (ast.Arg, error) {
 	return arg, nil
 }
 
+func (p *Parser) getPrecedence() int {
+	if prec, ok := precedences[p.curToken.Type]; ok {
+		return prec
+	}
+	return -999
+}
+
 func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	// first get prefix to guess the expression kind
 	prefix, ok := p.prefixExpressionParsers[p.curToken.Type]
 	// not a prefix
 	if !ok {
-		return ast.Null{}, fmt.Errorf("%s is not a prefix operator", p.curToken.Literal)
+		return ast.Null{}, fmt.Errorf("%s is not a prefix operator", p.curToken.Literal, p.curToken)
 	}
 	// we got the left
 	// e.g. for variable assignment it's $var
@@ -406,7 +459,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	if err != nil {
 		return left, err
 	}
-	for precedence < precedences[p.curToken.Type] {
+	for precedence < p.getPrecedence() {
 		if p.curToken.Type == token.SEMICOLON {
 			return left, nil
 		}
@@ -425,9 +478,8 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 
 // parseVariable
 func (p *Parser) parseVariable() (ast.Expression, error) {
-	// eat $
-	p.next()
-	variable := &ast.VariableExpression{}
+	variable := &ast.VariableExpression{Token: p.curToken}
+	p.next() // eat $
 	if err := p.assertTokenType(token.IDENT); err != nil {
 		return variable, err
 	}
@@ -450,19 +502,16 @@ func (p *Parser) parseTraitDeclaration() (ast.Expression, error) {
 }
 
 func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
-	// eat `=`
-	p.next()
+	as := &ast.AssignmentExpression{Token: p.curToken}
+	p.next() // eat `=`
 
 	switch left.(type) {
 	case *ast.VariableExpression:
 		// do noting, that's okay
 	default:
-		return ast.Null{}, fmt.Errorf("can not assign to %s", left.String())
+		return nil, fmt.Errorf("can not assign to %s", left.String())
 	}
-
-	as := &ast.AssignmentExpression{
-		Left: left,
-	}
+	as.Left = left
 	right, err := p.parseExpression(-1)
 	if err != nil {
 		return left, err
@@ -473,15 +522,23 @@ func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parseBinaryExpression(left ast.Expression) (ast.Expression, error) {
+	be := new(ast.BinaryExpression)
+	be.Left = left
+
 	// operator
-	op := p.curToken.Literal
+	be.Op = p.curToken.Literal
+	be.Token = p.curToken
 	p.next() // eat operator
+
 	right, err := p.parseExpression(-1)
 
 	if err != nil {
 		return nil, err
 	}
-	return &ast.BinaryExpression{Left: left, Op: op, Right: right}, nil
+
+	be.Right = right
+
+	return be, nil
 }
 
 func (p *Parser) parseArrayInitialization() (ast.Expression, error) {
@@ -489,10 +546,9 @@ func (p *Parser) parseArrayInitialization() (ast.Expression, error) {
 }
 
 func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, error) {
-	// eat `[`
-	p.next()
+	indexExpression := &ast.IndexExpression{Left: left, Token: p.curToken}
+	p.next() // eat `[`
 
-	indexExpression := &ast.IndexExpression{Left: left}
 	value, err := p.parseExpression(-1)
 	if err != nil {
 		return indexExpression, err
@@ -514,9 +570,8 @@ func (p *Parser) parseStringLiteral() (ast.Expression, error) {
 }
 
 func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
-	ce := &ast.ConditionalExpression{}
-	// eat `if`
-	p.next()
+	ce := &ast.ConditionalExpression{Token: p.curToken}
+	p.next() // eat `if`
 
 	conditionExpression, err := p.parseExpression(-1)
 	if err != nil {
@@ -568,9 +623,9 @@ func (p *Parser) parseInteger() (ast.Expression, error) {
 }
 
 func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression, error) {
-	// eat `instanceof`
-	p.next()
-	iof := ast.InstanceOfExpression{Object: left}
+	iof := ast.InstanceOfExpression{Object: left, Token: p.curToken}
+	p.next() // eat `instanceof`
+
 	right, err := p.parseExpression(-1)
 	if err != nil {
 		return iof, err
@@ -585,7 +640,7 @@ func (p *Parser) parseFunctionCall(left ast.Expression) (ast.Expression, error) 
 	if !ok {
 		return nil, fmt.Errorf("expected token ident, %v given", left)
 	}
-	call := &ast.FunctionCall{Target: ident}
+	call := &ast.FunctionCall{Target: ident, Token: p.curToken}
 	var err error
 	// parse all (<args>)
 	call.CallArgs, err = p.parseExpressionList()

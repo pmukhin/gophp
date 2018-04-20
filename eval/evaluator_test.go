@@ -31,7 +31,7 @@ func TestEval(t *testing.T) {
 	// $multiplication = $variableInteger * $secondVariableInteger;
 	// $sub = $variableInteger - $secondVariableInteger;
 	t.Run("assignment & arithmetic", func(t *testing.T) {
-		p := &ast.Program{}
+		p := &ast.Module{}
 		p.Statements = []ast.Statement{
 			&ast.ExpressionStatement{
 				Expression: &ast.AssignmentExpression{
@@ -142,7 +142,7 @@ func TestEval(t *testing.T) {
 	// tested code
 	// $isEqual = 5 == 5;
 	t.Run("is equal", func(t *testing.T) {
-		p := &ast.Program{}
+		p := &ast.Module{}
 		p.Statements = []ast.Statement{
 			&ast.ExpressionStatement{
 				Expression: &ast.AssignmentExpression{
@@ -234,7 +234,7 @@ func TestEval(t *testing.T) {
 	})
 
 	t.Run("assignment of conditional", func(t *testing.T) {
-		p := &ast.Program{}
+		p := &ast.Module{}
 		p.Statements = []ast.Statement{
 			&ast.ExpressionStatement{
 				Expression: &ast.AssignmentExpression{
@@ -270,7 +270,7 @@ func TestEval(t *testing.T) {
 	// tested code:
 	// $result = println(7);
 	t.Run("simplest function call", func(t *testing.T) {
-		p := &ast.Program{}
+		p := &ast.Module{}
 		p.Statements = []ast.Statement{
 			&ast.ExpressionStatement{
 				Expression: &ast.AssignmentExpression{

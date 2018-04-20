@@ -1,7 +1,15 @@
 package token
 
+type (
+	TokenType uint8
+	Token struct {
+		Type    TokenType
+		Literal string
+	}
+)
+
 const (
-	EOF                      = iota
+	EOF                      TokenType = iota
 	ILLEGAL
 	NUMBER
 	STRING
@@ -79,8 +87,7 @@ const (
 	WHILE                     /* "while"			*/
 	ENDWHILE                  /* "endwhile"			*/
 	FOR                       /* "for"			*/
-	ENDFOR                    /* "endfor"			*/
-	FOREACH                   /* "foreach"			*/
+	EACH                      /* "each"			*/
 	ENDFOREACH                /* "endforeach"			*/
 	DECLARE                   /* "declare"			*/
 	ENDDECLARE                /* "enddeclare"			*/

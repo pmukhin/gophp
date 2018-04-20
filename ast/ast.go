@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"bytes"
 	"strings"
+	"github.com/pmukhin/gophp/token"
 )
 
 var fourSpaces = strings.Repeat(" ", 4)
@@ -44,6 +45,7 @@ type Expression interface {
 
 // Identifier represents variable names, method names, constants
 type Identifier struct {
+	Token token.Token
 	Value string
 }
 
@@ -71,6 +73,7 @@ func (Identifier) expressionNode() {}
 
 // ExpressionStatement is a container for an expression
 type ExpressionStatement struct {
+	Token      token.Token
 	Expression Expression
 }
 
@@ -100,6 +103,7 @@ func (ExpressionStatement) statementNode() {}
 
 // BlockStatement represents a list of statements
 type BlockStatement struct {
+	Token token.Token
 	// the { token or the first token from the first statement
 	Statements []Statement
 }
@@ -135,6 +139,7 @@ func (BlockStatement) statementNode() {}
 // InstanceOfExpression represents
 // $object instanceof SomeType
 type InstanceOfExpression struct {
+	Token  token.Token
 	Object Expression
 	Type   Expression
 }
@@ -165,6 +170,7 @@ func (InstanceOfExpression) expressionNode() {}
 // ConditionalExpression represents
 // if ($expression) {} else if {} else {}
 type ConditionalExpression struct {
+	Token       token.Token
 	Condition   Expression
 	Consequence *BlockStatement
 	Alternative *BlockStatement
@@ -205,6 +211,7 @@ func (ConditionalExpression) expressionNode() {}
 // AssignmentExpression represents
 // $var = "someValue"
 type AssignmentExpression struct {
+	Token token.Token
 	Left  Expression
 	Right Expression
 }
@@ -250,7 +257,8 @@ func (Null) expressionNode() {}
 
 // VariableExpression is $variable
 type VariableExpression struct {
-	Name string
+	Token token.Token
+	Name  string
 }
 
 func (ve VariableExpression) Accept(Visitor) {
@@ -277,6 +285,7 @@ func (VariableExpression) expressionNode() {}
 
 // IntegerLiteral represents an integer in the AST
 type IntegerLiteral struct {
+	Token token.Token
 	Value int64
 }
 
@@ -302,6 +311,7 @@ func (IntegerLiteral) expressionNode() {}
 
 // StringLiteral string in the AST
 type StringLiteral struct {
+	Token token.Token
 	Value string
 }
 
@@ -327,6 +337,7 @@ func (StringLiteral) expressionNode() {}
 // ArrayLiteral represents expressions like
 // ['one', 'two', 3, $obj->getElement()]
 type ArrayLiteral struct {
+	Token    token.Token
 	Elements []Expression
 }
 
@@ -369,6 +380,7 @@ func (ArrayLiteral) expressionNode() {}
 // IndexExpression represents expressions like
 // [$someVal] or [0]
 type IndexExpression struct {
+	Token token.Token
 	Left  Expression
 	Index Expression
 }
@@ -398,6 +410,7 @@ func (IndexExpression) expressionNode() {}
 
 // BooleanExpression is either false or true
 type BooleanExpression struct {
+	Token token.Token
 	Value bool
 }
 
@@ -432,6 +445,7 @@ func (BooleanExpression) expressionNode() {}
 // UnaryExpression is an expression like
 // -$var or !$var or ++$var
 type UnaryExpression struct {
+	Token    token.Token
 	IsPrefix bool
 	Op       string
 	Right    Expression
@@ -458,6 +472,7 @@ func (UnaryExpression) expressionNode() {}
 // BinaryExpression is an expression like
 // $var += 1 or $var >= $otherVar or $var != 2
 type BinaryExpression struct {
+	Token token.Token
 	Left  Expression
 	Op    string
 	Right Expression
@@ -489,6 +504,7 @@ func (BinaryExpression) expressionNode() {}
 // WhileExpression represents expressions like
 // while (true) { code... }
 type WhileExpression struct {
+	Token     token.Token
 	Condition Expression
 	Body      *BlockStatement
 }
@@ -515,10 +531,15 @@ func (WhileExpression) expressionNode() {}
 // ForEachExpression represents
 // foreach($array as $key => $value) {}
 type ForEachExpression struct {
+	Token token.Token
 	Array Expression
 	Key   *VariableExpression
 	Value *VariableExpression
 	Block *BlockStatement
+}
+
+func (fee ForEachExpression) Accept(Visitor) {
+	panic("implement me")
 }
 
 func (ForEachExpression) Pos() int {
@@ -552,6 +573,7 @@ func (ForEachExpression) expressionNode() {}
 // FunctionCall represents
 // substr($str, 0)
 type FunctionCall struct {
+	Token    token.Token
 	Target   *Identifier
 	CallArgs []Expression
 }
@@ -592,6 +614,7 @@ func (FunctionCall) expressionNode() {}
 // MethodCall represents
 // $object->method($args)
 type MethodCall struct {
+	Token  token.Token
 	FunctionCall
 	Object Expression
 }
@@ -607,6 +630,7 @@ func (mc MethodCall) String() string {
 
 // Arg represents function declared argument
 type Arg struct {
+	Token        token.Token
 	Type         *Identifier
 	Name         VariableExpression
 	DefaultValue Expression
@@ -636,6 +660,7 @@ func (a Arg) String() string {
 // FunctionDeclarationExpression is an expression like
 // `function <Name> (<Args> <Variadic>): <ReturnType> { <Block> }`
 type FunctionDeclarationExpression struct {
+	Token      token.Token
 	Anonymous  bool
 	Name       *Identifier
 	Args       []Arg
@@ -681,31 +706,32 @@ func (FunctionDeclarationExpression) expressionNode() {
 	panic("implement me")
 }
 
-// Program is the whole program for file
-type Program struct {
+// Module is the whole program for file
+type Module struct {
+	Token      token.Token
 	Statements []Statement
 }
 
 // Accept ...
-func (p Program) Accept(v Visitor) { v.Visit(ProgramType, p) }
+func (p Module) Accept(v Visitor) { v.Visit(ProgramType, p) }
 
 // expressionNode ...
-func (p Program) expressionNode() {}
+func (p Module) expressionNode() {}
 
-func (Program) Pos() int {
+func (Module) Pos() int {
 	panic("implement me")
 }
 
-func (Program) End() int {
+func (Module) End() int {
 	panic("implement me")
 }
 
-func (Program) TokenLiteral() string {
+func (Module) TokenLiteral() string {
 	panic("implement me")
 }
 
 // String ...
-func (p Program) String() string {
+func (p Module) String() string {
 	statements := make([]string, len(p.Statements))
 	for i, s := range p.Statements {
 		if s != nil {
@@ -716,13 +742,14 @@ func (p Program) String() string {
 }
 
 // statementNode ...
-func (Program) statementNode() {
+func (Module) statementNode() {
 	panic("implement me")
 }
 
 // ClassInstantiationExpression is a statement like
 // new DateTime('now')
 type ClassInstantiationExpression struct {
+	Token     token.Token
 	ClassName Identifier
 	Args      []Expression
 }
@@ -755,6 +782,7 @@ func (ClassInstantiationExpression) expressionNode() {}
 
 // PropertyDereference
 type PropertyDereference struct {
+	Token        token.Token
 	Object       Expression
 	PropertyName string
 }
@@ -784,6 +812,7 @@ func (PropertyDereference) expressionNode() {}
 // UseStatement is a statement like
 // `use Symfony\Component\HttpFoundation\Response;`
 type UseStatement struct {
+	Token     token.Token
 	Namespace string
 	Classes   []string
 }
@@ -816,6 +845,7 @@ func (UseStatement) statementNode() {}
 // NamespaceStatement is a statement like
 // namespace Silex\Application;
 type NamespaceStatement struct {
+	Token     token.Token
 	Namespace string
 }
 
@@ -845,6 +875,7 @@ func (ns NamespaceStatement) String() string {
 func (NamespaceStatement) statementNode() {}
 
 type ReturnStatement struct {
+	Token token.Token
 	Value Expression
 }
 

@@ -7,15 +7,18 @@ import (
 	"fmt"
 )
 
-type state struct {
-	inFunction bool
+type stateType struct {
+	namespace string
 }
+
+var state = stateType{}
 
 var opMethods = map[string]string{
 	"+": "__add",
 	"-": "__sub",
 	"/": "__div",
 	"*": "__mul",
+	"%": "__mod",
 
 	"==":  "__equal",
 	"===": "__identical",
@@ -47,6 +50,8 @@ func getClass(class string) object.Class {
 
 func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
+	case *ast.NamespaceStatement:
+		state.namespace = node.Namespace
 	case *ast.ReturnStatement:
 		v, e := Eval(node.Value, ctx)
 		if e != nil {
@@ -54,14 +59,11 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		}
 		return returnObject{value: v}, nil
 	case *ast.FunctionDeclarationExpression:
-		o := object.NewUserFunc(node.Name.Value, node.Args, node.Block)
-		e := ctx.GetFunctionTable().RegisterFunc(o)
-		if e != nil {
-			return object.Null, e
-		}
+		return object.Null, ctx.GetFunctionTable().
+			RegisterFunc(object.NewUserFunc(state.namespace, node.Name.Value, node.Args, node.Block))
 	case *ast.FunctionCall:
-		name := node.Target.Value
-		fun, e := ctx.GetFunctionTable().Find(name)
+		callName := node.Target.Value
+		fun, e := ctx.GetFunctionTable().Find(state.namespace, callName)
 		if e != nil {
 			return nil, e
 		}
@@ -106,7 +108,10 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		if boolean.Value {
 			return Eval(node.Consequence, ctx)
 		}
-		return Eval(node.Alternative, ctx)
+		if node.Alternative != nil {
+			return Eval(node.Alternative, ctx)
+		}
+		return object.Null, err
 	case *ast.Identifier:
 		if node.Value == "true" {
 			return object.True, nil
@@ -181,7 +186,7 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		return Eval(node.Expression, ctx)
 	case *ast.BlockStatement:
 		return evalBlock(ctx, node)
-	case *ast.Program:
+	case *ast.Module:
 		var (
 			r object.Object
 			e error

@@ -6,7 +6,7 @@ import (
 	"github.com/pmukhin/gophp/token"
 )
 
-var tokens = map[string]TokenType{
+var tokens = map[string]token.TokenType{
 	"return":     token.RETURN,
 	"include":    token.INCLUDE,
 	"require":    token.REQUIRE,
@@ -23,7 +23,7 @@ var tokens = map[string]TokenType{
 	"else":       token.ELSE,
 	"extends":    token.EXTENDS,
 	"for":        token.FOR,
-	"foreach":    token.FOREACH,
+	"each":       token.EACH,
 	"instanceof": token.INSTANCEOF,
 	"const":      token.CONST,
 	"throw":      token.THROW,
@@ -36,69 +36,61 @@ var (
 
 	// static tokens
 	// system tokens
-	tokenEof     = Token{Type: token.EOF}
-	tokenIllegal = Token{Type: token.ILLEGAL}
+	tokenEof     = token.Token{Type: token.EOF}
+	tokenIllegal = token.Token{Type: token.ILLEGAL}
 
 	// arithmetic
-	tokenPlus        = Token{Type: token.PLUS, Literal: "+"}
-	tokenMinus       = Token{Type: token.MINUS, Literal: "-"}
-	tokenMulti       = Token{Type: token.MUL, Literal: "*"}
-	tokenDiv         = Token{Type: token.DIV, Literal: "/"}
-	tokenVariable    = Token{Type: token.VAR, Literal: "$"}
-	tokenCurlyOpen   = Token{Type: token.CURLY_OPENING, Literal: "{"}
-	tokenCurlyClose  = Token{Type: token.CURLY_CLOSING, Literal: "}"}
-	tokenSmaller     = Token{Type: token.IS_SMALLER, Literal: "<"}
-	tokenGreater     = Token{Type: token.IS_GREATER, Literal: ">"}
-	tokenMultiAssign = Token{Type: token.MUL_EQUAL, Literal: "*="}
+	tokenPlus        = token.Token{Type: token.PLUS, Literal: "+"}
+	tokenMinus       = token.Token{Type: token.MINUS, Literal: "-"}
+	tokenMulti       = token.Token{Type: token.MUL, Literal: "*"}
+	tokenDiv         = token.Token{Type: token.DIV, Literal: "/"}
+	tokenVariable    = token.Token{Type: token.VAR, Literal: "$"}
+	tokenCurlyOpen   = token.Token{Type: token.CURLY_OPENING, Literal: "{"}
+	tokenCurlyClose  = token.Token{Type: token.CURLY_CLOSING, Literal: "}"}
+	tokenSmaller     = token.Token{Type: token.IS_SMALLER, Literal: "<"}
+	tokenGreater     = token.Token{Type: token.IS_GREATER, Literal: ">"}
+	tokenMultiAssign = token.Token{Type: token.MUL_EQUAL, Literal: "*="}
 
-	tokenSubAssign = Token{Type: token.MINUS_EQUAL, Literal: "-="}
-	tokenDecrement = Token{Type: token.DEC, Literal: "--"}
+	tokenSubAssign = token.Token{Type: token.MINUS_EQUAL, Literal: "-="}
+	tokenDecrement = token.Token{Type: token.DEC, Literal: "--"}
 
-	tokenMod      = Token{Type: token.MOD, Literal: "%"}
-	tokenModEqual = Token{Type: token.MOD_EQUAL, Literal: "%="}
+	tokenMod      = token.Token{Type: token.MOD, Literal: "%"}
+	tokenModEqual = token.Token{Type: token.MOD_EQUAL, Literal: "%="}
 
-	tokenDivAssign = Token{Type: token.DIV_EQUAL, Literal: "/="}
+	tokenDivAssign = token.Token{Type: token.DIV_EQUAL, Literal: "/="}
 
-	tokenAddAssign = Token{Type: token.PLUS_EQUAL, Literal: "+="}
-	tokenIncrement = Token{Type: token.INC, Literal: "++"}
+	tokenAddAssign = token.Token{Type: token.PLUS_EQUAL, Literal: "+="}
+	tokenIncrement = token.Token{Type: token.INC, Literal: "++"}
 
-	tokenSmallerOrEqual = Token{Type: token.IS_SMALLER_OR_EQUAL, Literal: "<="}
-	tokenGreaterOrEqual = Token{Type: token.IS_GREATER_OR_EQUAL, Literal: "<="}
+	tokenSmallerOrEqual = token.Token{Type: token.IS_SMALLER_OR_EQUAL, Literal: "<="}
+	tokenGreaterOrEqual = token.Token{Type: token.IS_GREATER_OR_EQUAL, Literal: "<="}
 
-	tokenAssign      = Token{Type: token.EQUAL, Literal: "="}
-	tokenDoubleArrow = Token{Type: token.DOUBLE_ARROW, Literal: "=>"}
+	tokenAssign      = token.Token{Type: token.EQUAL, Literal: "="}
+	tokenDoubleArrow = token.Token{Type: token.DOUBLE_ARROW, Literal: "=>"}
 
-	tokenComma = Token{Type: token.COMMA, Literal: ","}
+	tokenComma = token.Token{Type: token.COMMA, Literal: ","}
 
-	tokenSemicolon = Token{Type: token.SEMICOLON, Literal: ";"}
-	tokenColon     = Token{Type: token.COLON, Literal: ":"}
+	tokenSemicolon = token.Token{Type: token.SEMICOLON, Literal: ";"}
+	tokenColon     = token.Token{Type: token.COLON, Literal: ":"}
 
-	tokenNot = Token{Type: token.NOT, Literal: "!"}
+	tokenNot = token.Token{Type: token.NOT, Literal: "!"}
 
-	tokenEqual        = Token{Type: token.IS_EQUAL, Literal: "=="}
-	tokenIdentical    = Token{Type: token.IS_EQUAL, Literal: "==="}
-	tokenNotEqual     = Token{Type: token.IS_NOT_EQUAL, Literal: "!="}
-	tokenNotIdentical = Token{Type: token.IS_NOT_IDENTICAL, Literal: "!=="}
+	tokenEqual        = token.Token{Type: token.IS_EQUAL, Literal: "=="}
+	tokenIdentical    = token.Token{Type: token.IS_EQUAL, Literal: "==="}
+	tokenNotEqual     = token.Token{Type: token.IS_NOT_EQUAL, Literal: "!="}
+	tokenNotIdentical = token.Token{Type: token.IS_NOT_IDENTICAL, Literal: "!=="}
 
-	tokenFetch       = Token{Type: token.OBJECT_OPERATOR, Literal: "->"}
-	tokenStaticFetch = Token{Type: token.PAAMAYIM_NEKUDOTAYIM, Literal: "::"}
-	tokenBackslash   = Token{Type: token.BACKSLASH, Literal: "\\"}
+	tokenFetch       = token.Token{Type: token.OBJECT_OPERATOR, Literal: "->"}
+	tokenStaticFetch = token.Token{Type: token.PAAMAYIM_NEKUDOTAYIM, Literal: "::"}
+	tokenBackslash   = token.Token{Type: token.BACKSLASH, Literal: "\\"}
 
 	// paren
-	tokenParenOpen  = Token{Type: token.PARENTHESIS_OPENING, Literal: "("}
-	tokenParenClose = Token{Type: token.PARENTHESIS_CLOSING, Literal: ")"}
+	tokenParenOpen  = token.Token{Type: token.PARENTHESIS_OPENING, Literal: "("}
+	tokenParenClose = token.Token{Type: token.PARENTHESIS_CLOSING, Literal: ")"}
 
 	// sq brackets
-	tokenSquareBracketOpening = Token{Type: token.SQUARE_BRACKET_OPENING, Literal: "["}
-	tokenSquareBracketClosing = Token{Type: token.SQUARE_BRACKET_CLOSING, Literal: "]"}
-)
-
-type (
-	TokenType uint8
-	Token struct {
-		Type    TokenType
-		Literal string
-	}
+	tokenSquareBracketOpening = token.Token{Type: token.SQUARE_BRACKET_OPENING, Literal: "["}
+	tokenSquareBracketClosing = token.Token{Type: token.SQUARE_BRACKET_CLOSING, Literal: "]"}
 )
 
 func New(text []rune) *Scanner {
@@ -131,7 +123,7 @@ func (s *Scanner) backup() {
 	s.cur = s.src[s.offset]
 }
 
-func (s *Scanner) Next() (tok Token) {
+func (s *Scanner) Next() (tok token.Token) {
 	s.skipWhitespace()
 
 	switch s.cur {
@@ -279,7 +271,7 @@ func (s *Scanner) Next() (tok Token) {
 }
 
 //
-func (s *Scanner) scanNumber(neg bool) (Token) {
+func (s *Scanner) scanNumber(neg bool) token.Token {
 	literal := make([]rune, 0, 16)
 	if neg {
 		literal = append(literal, '-')
@@ -294,7 +286,7 @@ func (s *Scanner) scanNumber(neg bool) (Token) {
 		}
 	}
 	s.backup()
-	return Token{Type: token.NUMBER, Literal: string(literal)}
+	return token.Token{Type: token.NUMBER, Literal: string(literal)}
 }
 
 func (s *Scanner) nextChar() {
@@ -320,20 +312,20 @@ func (s *Scanner) isIdentifier(r rune) bool {
 	return unicode.IsLetter(r) || r == '_' || unicode.IsDigit(r)
 }
 
-func (s *Scanner) scanIdentifier() (Token) {
+func (s *Scanner) scanIdentifier() (token.Token) {
 	identifier := make([]rune, 0, 32)
 	for s.isIdentifier(s.cur) {
 		identifier = append(identifier, s.cur)
 		if tok, ok := tokens[string(identifier)]; ok {
-			return Token{Type: tok, Literal: string(identifier)}
+			return token.Token{Type: tok, Literal: string(identifier)}
 		}
 		s.nextChar()
 	}
 	s.backup()
-	return Token{Type: token.IDENT, Literal: string(identifier)}
+	return token.Token{Type: token.IDENT, Literal: string(identifier)}
 }
 
-func (s *Scanner) parseComment() Token {
+func (s *Scanner) parseComment() token.Token {
 	com := make([]rune, 0, 256)
 	for {
 		com = append(com, s.cur)
@@ -345,10 +337,10 @@ func (s *Scanner) parseComment() Token {
 		s.nextChar()
 	}
 exit:
-	return Token{Type: token.COMMENT, Literal: string(com)}
+	return token.Token{Type: token.COMMENT, Literal: string(com)}
 }
 
-func (s *Scanner) readString(op rune) (tok Token) {
+func (s *Scanner) readString(op rune) (tok token.Token) {
 	s.nextChar()
 	tok.Type = token.STRING
 	str := make([]rune, 0, 32)
