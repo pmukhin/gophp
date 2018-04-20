@@ -38,6 +38,7 @@ var (
 	// system tokens
 	tokenEof     = token.Token{Type: token.EOF}
 	tokenIllegal = token.Token{Type: token.ILLEGAL}
+	tokenNewline = token.Token{Type: token.NEWLINE}
 
 	// arithmetic
 	tokenPlus        = token.Token{Type: token.PLUS, Literal: "+"}
@@ -97,16 +98,17 @@ func New(text []rune) *Scanner {
 	s := new(Scanner)
 	s.len = len(text)
 	s.src = text
-	s.cur = text[s.offset]
+	s.ch = text[s.offset]
 
 	return s
 }
 
 type Scanner struct {
-	src    []rune
-	len    int
-	offset int
-	cur    rune
+	src        []rune
+	len        int
+	insertSemi bool
+	offset     int
+	ch         rune
 }
 
 // HasNext checks if the string is over
@@ -120,43 +122,44 @@ func (s *Scanner) peek() rune {
 
 func (s *Scanner) backup() {
 	s.offset--
-	s.cur = s.src[s.offset]
+	s.ch = s.src[s.offset]
 }
 
 // Next ...
 func (s *Scanner) Next() (tok token.Token) {
 	s.skipWhitespace()
 
-	switch s.cur {
+	insertSemi := false
+	switch s.ch {
 	case -1:
 		tok = tokenEof
 	case '\\':
 		tok = tokenBackslash
 		if s.peek() == '\\' {
-			s.nextChar()
+			s.next() // eat another one if exists
 		}
 	case '\'':
+		insertSemi = true
 		tok = s.readString('\'')
 	case '"':
+		insertSemi = true
 		tok = s.readString('"')
 	case ',':
 		tok = tokenComma
 	case ':':
 		if s.peek() == ':' {
-			s.nextChar()
+			s.next()
 			tok = tokenStaticFetch
 		} else {
 			tok = tokenColon
 		}
-	case '\n':
-		tok = tokenSemicolon
 	case ';':
 		tok = tokenSemicolon
 	case '!':
 		if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			if s.peek() == '=' {
-				s.nextChar()
+				s.next()
 				tok = tokenNotIdentical
 			} else {
 				tok = tokenNotEqual
@@ -166,12 +169,12 @@ func (s *Scanner) Next() (tok token.Token) {
 		}
 	case '=':
 		if s.peek() == '>' {
-			s.nextChar()
+			s.next()
 			tok = tokenDoubleArrow
 		} else if s.peek() == '=' {
-			s.nextChar() // eat `=`
+			s.next() // eat `=`
 			if s.peek() == '=' {
-				s.nextChar()
+				s.next()
 				tok = tokenIdentical
 			} else {
 				tok = tokenEqual
@@ -181,21 +184,21 @@ func (s *Scanner) Next() (tok token.Token) {
 		}
 	case '<':
 		if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenSmallerOrEqual
 		} else {
 			tok = tokenSmaller
 		}
 	case '>':
 		if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenGreaterOrEqual
 		} else {
 			tok = tokenGreater
 		}
 	case '%':
 		if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenModEqual
 		} else {
 			tok = tokenMod
@@ -203,23 +206,27 @@ func (s *Scanner) Next() (tok token.Token) {
 	case '[':
 		tok = tokenSquareBracketOpening
 	case ']':
+		insertSemi = true
 		tok = tokenSquareBracketClosing
 	case '(':
 		tok = tokenParenOpen
 	case ')':
+		insertSemi = true
 		tok = tokenParenClose
 	case '{':
 		tok = tokenCurlyOpen
 	case '}':
+		insertSemi = true
 		tok = tokenCurlyClose
 	case '$':
 		tok = tokenVariable
 	case '+':
 		if s.peek() == '+' {
-			s.nextChar()
+			s.next()
+			insertSemi = true
 			tok = tokenIncrement
 		} else if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenAddAssign
 		} else {
 			tok = tokenPlus
@@ -229,20 +236,23 @@ func (s *Scanner) Next() (tok token.Token) {
 		if unicode.IsDigit(next) {
 			tok = s.scanNumber(true)
 		} else if s.peek() == '>' {
-			s.nextChar()
+			s.next()
 			tok = tokenFetch
 		} else if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenSubAssign
 		} else if next == '-' {
-			s.nextChar()
+			s.next()
+			insertSemi = true
 			tok = tokenDecrement
 		} else {
 			tok = tokenMinus
 		}
+	case '\n':
+		tok = tokenSemicolon
 	case '*':
 		if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenMultiAssign
 		} else {
 			tok = tokenMulti
@@ -251,23 +261,28 @@ func (s *Scanner) Next() (tok token.Token) {
 		if s.peek() == '*' {
 			tok = s.parseComment()
 		} else if s.peek() == '=' {
-			s.nextChar()
+			s.next()
 			tok = tokenDivAssign
 		} else {
 			tok = tokenDiv
 		}
 	default:
 		switch {
-		case unicode.IsNumber(s.cur):
+		case unicode.IsNumber(s.ch):
+			insertSemi = true
 			tok = s.scanNumber(false)
-		case s.isIdentifier(s.cur):
+		case s.isIdentifier(s.ch):
 			tok = s.scanIdentifier()
+			if tok.Type == token.RETURN || tok.Type == token.IDENT {
+				insertSemi = true
+			}
 		default:
 			tok = tokenIllegal
-			tok.Literal = string(s.cur)
+			tok.Literal = string(s.ch)
 		}
 	}
-	s.nextChar()
+	s.insertSemi = insertSemi
+	s.next()
 	return
 }
 
@@ -276,36 +291,32 @@ func (s *Scanner) scanNumber(neg bool) token.Token {
 	literal := make([]rune, 0, 16)
 	if neg {
 		literal = append(literal, '-')
-		s.nextChar()
+		s.next()
 	}
-	for unicode.IsNumber(s.cur) {
-		literal = append(literal, s.cur)
+	for unicode.IsNumber(s.ch) {
+		literal = append(literal, s.ch)
 		if !s.HasNext() {
 			break
 		} else {
-			s.nextChar()
+			s.next()
 		}
 	}
 	s.backup()
 	return token.Token{Type: token.NUMBER, Literal: string(literal)}
 }
 
-func (s *Scanner) nextChar() {
+func (s *Scanner) next() {
 	s.offset++
 	if s.offset >= s.len {
-		s.cur = -1
+		s.ch = -1
 	} else {
-		s.cur = s.src[s.offset]
+		s.ch = s.src[s.offset]
 	}
 }
 
 func (s *Scanner) skipWhitespace() {
-	for {
-		if s.cur == ' ' || s.cur == '\n' || s.cur == '\t' {
-			s.nextChar()
-		} else {
-			break
-		}
+	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !s.insertSemi || s.ch == '\r' {
+		s.next()
 	}
 }
 
@@ -315,12 +326,12 @@ func (s *Scanner) isIdentifier(r rune) bool {
 
 func (s *Scanner) scanIdentifier() (token.Token) {
 	identifier := make([]rune, 0, 32)
-	for s.isIdentifier(s.cur) {
-		identifier = append(identifier, s.cur)
+	for s.isIdentifier(s.ch) {
+		identifier = append(identifier, s.ch)
 		if tok, ok := tokens[string(identifier)]; ok {
 			return token.Token{Type: tok, Literal: string(identifier)}
 		}
-		s.nextChar()
+		s.next()
 	}
 	s.backup()
 	return token.Token{Type: token.IDENT, Literal: string(identifier)}
@@ -329,25 +340,25 @@ func (s *Scanner) scanIdentifier() (token.Token) {
 func (s *Scanner) parseComment() token.Token {
 	com := make([]rune, 0, 256)
 	for {
-		com = append(com, s.cur)
-		if s.cur == '*' && s.peek() == '/' {
+		com = append(com, s.ch)
+		if s.ch == '*' && s.peek() == '/' {
 			com = append(com, '/')
-			s.nextChar()
+			s.next()
 			goto exit
 		}
-		s.nextChar()
+		s.next()
 	}
 exit:
 	return token.Token{Type: token.COMMENT, Literal: string(com)}
 }
 
 func (s *Scanner) readString(op rune) (tok token.Token) {
-	s.nextChar()
+	s.next()
 	tok.Type = token.STRING
 	str := make([]rune, 0, 32)
-	for s.cur != op {
-		str = append(str, s.cur)
-		s.nextChar()
+	for s.ch != op {
+		str = append(str, s.ch)
+		s.next()
 	}
 	tok.Literal = string(str)
 	return

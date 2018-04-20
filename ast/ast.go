@@ -871,6 +871,36 @@ func (ns NamespaceStatement) String() string {
 	return "namespace " + ns.Namespace + ";"
 }
 
+// ConstantExpression ...
+type ConstantExpression struct {
+	Token token.Token
+	Name  *Identifier
+}
+
+func (ConstantExpression) Pos() int {
+	panic("implement me")
+}
+
+func (ConstantExpression) End() int {
+	panic("implement me")
+}
+
+func (ConstantExpression) TokenLiteral() string {
+	panic("implement me")
+}
+
+func (ce ConstantExpression) String() string {
+	return "const " + ce.Name.String()
+}
+
+func (ConstantExpression) Accept(Visitor) {
+	panic("implement me")
+}
+
+func (ConstantExpression) expressionNode() {
+	panic("implement me")
+}
+
 // statementNode ...
 func (NamespaceStatement) statementNode() {}
 

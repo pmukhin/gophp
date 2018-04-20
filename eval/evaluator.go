@@ -94,14 +94,45 @@ func unpackReturnObject(o object.Object, err error) (object.Object, error) {
 	return o, err
 }
 
+func evalForeach(foreach *ast.ForEachExpression, ctx object.Context) (object.Object, error) {
+	array, err := Eval(foreach.Array, ctx)
+	if err != nil {
+		return object.Null, err
+	}
+	for index, value := range array.(*object.ArrayObject).Values {
+		if foreach.Key != nil {
+			ctx.SetContextVar(foreach.Key.Name, &object.IntegerObject{Value: int64(index)})
+		}
+		ctx.SetContextVar(foreach.Value.Name, value)
+		_, err := Eval(foreach.Block, ctx)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+	return object.Null, nil
+}
+
 func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
+	case *ast.ArrayLiteral:
+		values := make([]object.Object, len(node.Elements))
+		for i, expression := range node.Elements {
+			result, err := Eval(expression, ctx)
+			if err != nil {
+				return object.Null, err
+			}
+			values[i] = result
+		}
+		return object.NewArray(values...)
 	case *ast.NamespaceStatement:
 		state.namespace = node.Namespace
 	case *ast.UseStatement:
 		for _, name := range node.Classes {
 			state.uses[name] = node.Namespace + "\\" + name
 		}
+	case *ast.ForEachExpression:
+		return evalForeach(node, ctx)
 	case *ast.ReturnStatement:
 		v, e := Eval(node.Value, ctx)
 		if e != nil {
@@ -160,7 +191,8 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		if node.Value == "false" {
 			return object.False, nil
 		}
-		return object.Null, nil
+		// other constant?
+		return ctx.GetGlobal(node.Value)
 	case *ast.BinaryExpression:
 		l, e := Eval(node.Left, ctx)
 		if e != nil {
@@ -203,9 +235,12 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 			return nil, e
 		}
 		switch left := node.Left.(type) {
+		case *ast.ConstantExpression:
+			e := ctx.SetGlobal(left.Name.Value, right)
+			return object.Null, e
 		case *ast.VariableExpression:
-			ctx.SetContextVar(left.Name, right)
-			return right, nil
+			e := ctx.SetContextVar(left.Name, right)
+			return right, e
 		}
 	case *ast.ClassInstantiationExpression:
 		name := node.ClassName.String()

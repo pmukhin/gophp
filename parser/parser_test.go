@@ -121,42 +121,6 @@ func TestParser_ParseAssignment(t *testing.T) {
 	})
 }
 
-func TestParser_ParseFunction(t *testing.T) {
-	input := `
-		$someVar = $response->statusCode;
-		function render($view, array $parameters): Response {
-        $twig = $this['twig'];
-        if ($response instanceof StreamedResponse) {
-            $response->setCallback(function () use ($twig, $view) {
-                $twig->display($view);
-            });
-        } else {
-            $response;
-        }
-        return $response;
-    }`
-
-	run(t, input, []ast.Statement{
-		ast.ExpressionStatement{
-			Expression: ast.FunctionDeclarationExpression{
-				Anonymous:  false,
-				Name:       &ast.Identifier{Value: "render"},
-				ReturnType: &ast.Identifier{Value: "Response"},
-				Args: []ast.Arg{
-					{
-						Type: nil,
-						Name: ast.VariableExpression{Name: "view"},
-					},
-					{
-						Type: &ast.Identifier{Value: "array"},
-						Name: ast.VariableExpression{Name: "parameters"},
-					},
-				},
-			},
-		},
-	})
-}
-
 func TestParser_ParseNamespaceStatement(t *testing.T) {
 	run(t, `namespace Silex;`, []ast.Statement{
 		ast.NamespaceStatement{Namespace: "Silex"},

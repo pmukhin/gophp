@@ -10,11 +10,21 @@ import (
 	"strconv"
 )
 
+const (
+	pLowest     = iota
+	pBraces      // {
+	pAssignment  // $y = 0
+	pSum         // + or -
+	pProduct     // *, /, %
+	pPrefix      // -$x or --$x
+)
+
 var precedences = map[token.TokenType]int{
-	token.CURLY_OPEN: 4,
+	token.CURLY_OPEN: pBraces,
 
 
-	token.EQUAL:               1,
+	token.EQUAL: pAssignment,
+
 	token.IS_EQUAL:            1,
 	token.IS_IDENTICAL:        1,
 	token.IS_SMALLER:          1,
@@ -23,15 +33,17 @@ var precedences = map[token.TokenType]int{
 	token.IS_GREATER_OR_EQUAL: 1,
 
 
-	token.PARENTHESIS_OPENING: 1,
+	token.PARENTHESIS_OPENING: 10,
 	//
-	token.PLUS:  2,
-	token.MINUS: 2,
-	token.MOD:   3,
+	token.PLUS:  pSum,
+	token.MINUS: pSum,
 
-	// biggest
-	token.DIV: 100,
-	token.MUL: 100,
+	token.MOD: pProduct,
+	token.DIV: pProduct,
+	token.MUL: pProduct,
+
+	token.INC: pPrefix,
+	token.DEC: pPrefix,
 }
 
 type (
@@ -140,24 +152,63 @@ func (p *Parser) Parse() (*ast.Module, error) {
 }
 
 func (p *Parser) skipComment() {
-	for p.curToken.Type == token.COMMENT {
+	for p.curToken.Type == token.COMMENT || p.curToken.Type == token.SEMICOLON {
 		p.next()
 	}
+}
+
+func (p *Parser) parseForeach() (ast.Expression, error) {
+	foreach := &ast.ForEachExpression{Token: p.curToken}
+	p.next() // eat `each`
+	if e := p.eatOfType(token.PARENTHESIS_OPENING); e != nil { // eat `(`
+		return foreach, e
+	}
+	// parse array
+	array, err := p.parseExpression(pLowest)
+	if err != nil {
+		return nil, err
+	}
+	foreach.Array = array
+	if e := p.eatOfType(token.AS); e != nil { // eat `as`
+		return nil, e
+	}
+	first, err := p.parseVariable()
+	if err != nil {
+		return nil, err
+	}
+	if p.oneOf(token.DOUBLE_ARROW) {
+		// we have both keys and values
+		p.next() // eat `=>`
+		value, err := p.parseVariable()
+		if err != nil {
+			return nil, err
+		}
+		foreach.Key = first.(*ast.VariableExpression)
+		foreach.Value = value.(*ast.VariableExpression)
+	} else {
+		foreach.Value = first.(*ast.VariableExpression)
+	}
+	if e := p.eatOfType(token.PARENTHESIS_CLOSING); e != nil { // eat `)`
+		return nil, e
+	}
+	b, err := p.parseBlock()
+	if err != nil {
+		return nil, err
+	}
+	foreach.Block = b
+
+	return foreach, nil
+}
+
+func (p *Parser) parseFor() (ast.Expression, error) {
+	panic("not implemented")
 }
 
 func (p *Parser) parseLoop() (ast.Expression, error) {
 	p.next() // eat `for`
 
 	if p.curToken.Type == token.EACH {
-		foreach := &ast.ForEachExpression{Token: p.curToken}
-		p.eatOfType(token.PARENTHESIS_OPENING)
-		array, err := p.parseExpression(-1)
-		if err != nil {
-			return nil, err
-		}
-		foreach.Array = array
-
-		return foreach, nil
+		return p.parseForeach()
 	}
 
 	panic("dsf")
@@ -165,6 +216,7 @@ func (p *Parser) parseLoop() (ast.Expression, error) {
 
 func (p *Parser) parseStatement() (st ast.Statement, err error) {
 	p.skipComment()
+
 	switch p.curToken.Type {
 	case token.EOF:
 		err = io.EOF
@@ -181,12 +233,13 @@ func (p *Parser) parseStatement() (st ast.Statement, err error) {
 	default:
 		st, err = p.parseExpressionStatement()
 	}
-
-	if p.curToken.Type == token.SEMICOLON {
-		p.next() // eat `;` if it's there
+	if err != nil {
+		return
 	}
-
-	return
+	if p.oneOf(token.SEMICOLON, token.NEWLINE) {
+		p.next() // eat `;` or `\n`
+	}
+	return st, nil
 }
 
 func (p *Parser) parseExpressionStatement() (es *ast.ExpressionStatement, err error) {
@@ -202,7 +255,7 @@ func (p *Parser) parseExpressionStatement() (es *ast.ExpressionStatement, err er
 
 // eatOfType ...
 func (p *Parser) eatOfType(tokenType token.TokenType) error {
-	p.next()
+	defer p.next()
 	return p.assertTokenType(tokenType)
 }
 
@@ -218,20 +271,18 @@ func (p *Parser) assertTokenType(tokenType token.TokenType) error {
 func (p *Parser) parseNamespaceStatement() (ns *ast.NamespaceStatement, err error) {
 	ns = new(ast.NamespaceStatement)
 	namespace := make([]string, 0, 8)
+	p.next() // eat `namespace`
 	for {
-		p.next()
 		if err = p.assertTokenType(token.IDENT); err != nil {
 			return
 		}
 		namespace = append(namespace, p.curToken.Literal)
-
-		p.next()
-		if p.curToken.Type == token.SEMICOLON {
-			break
+		p.next() // eat Ident
+		if p.curToken.Type == token.BACKSLASH {
+			p.next() // eat token.BACKSLASH
+			continue
 		}
-		if err = p.assertTokenType(token.BACKSLASH); err != nil {
-			return
-		}
+		break
 	}
 
 	pathLen := len(namespace)
@@ -239,9 +290,7 @@ func (p *Parser) parseNamespaceStatement() (ns *ast.NamespaceStatement, err erro
 		return ns, fmt.Errorf("empty path in namespace directive")
 	}
 	ns.Namespace = strings.Join(namespace, "\\")
-	// eat `;`
-	err = p.assertTokenType(token.SEMICOLON)
-	p.next()
+
 	return
 }
 
@@ -249,22 +298,20 @@ func (p *Parser) parseNamespaceStatement() (ns *ast.NamespaceStatement, err erro
 // `use Symfony\Component\HttpFoundation\Response;`
 func (p *Parser) parseUseStatement() (us *ast.UseStatement, err error) {
 	us = &ast.UseStatement{Token: p.curToken}
-	namespace := make([]string, 0, 8)
+	p.next() // eat `use`
 
+	namespace := make([]string, 0, 8)
 	for {
-		p.next()
 		if err = p.assertTokenType(token.IDENT); err != nil {
 			return
 		}
 		namespace = append(namespace, p.curToken.Literal)
-
-		p.next()
-		if p.curToken.Type == token.SEMICOLON {
-			break
+		p.next() // eat Ident
+		if p.curToken.Type == token.BACKSLASH {
+			p.next() // eat token.BACKSLASH
+			continue
 		}
-		if err = p.assertTokenType(token.BACKSLASH); err != nil {
-			return
-		}
+		break
 	}
 
 	pathLen := len(namespace)
@@ -274,9 +321,7 @@ func (p *Parser) parseUseStatement() (us *ast.UseStatement, err error) {
 
 	us.Classes = []string{namespace[pathLen-1]}
 	us.Namespace = strings.Join(namespace[0:pathLen-1], "\\")
-	// eat `;`
-	err = p.assertTokenType(token.SEMICOLON)
-	p.next()
+
 	return
 }
 
@@ -342,7 +387,7 @@ func (p *Parser) parseReturnStatement() (ast.Statement, error) {
 		r.Value = &ast.Null{}
 		return r, nil
 	}
-	val, e := p.parseExpression(-1)
+	val, e := p.parseExpression(pLowest)
 	if e != nil {
 		return nil, e
 	}
@@ -376,7 +421,6 @@ func (p *Parser) parseArgs() ([]ast.Arg, error) {
 		}
 		args = append(args, arg)
 
-		p.next()
 		if p.curToken.Type == token.PARENTHESIS_CLOSING {
 			break
 		} else if p.curToken.Type == token.COMMA {
@@ -425,14 +469,13 @@ exit:
 
 // parseTypedArg parses typed arg like `array $values = []`
 func (p *Parser) parseTypedArg() (arg ast.Arg, err error) {
-	typeName := p.curToken.Literal
-	if err = p.eatOfType(token.VAR); err != nil {
-		return
-	}
+	typeName := p.curToken.Literal // eat `Type`
+	p.next()                       // eat ident
+	t := &ast.Identifier{Value: typeName, Token: p.curToken}
 	if arg, err = p.parseArg(); err != nil {
 		return
 	}
-	arg.Type = &ast.Identifier{Value: typeName, Token: p.curToken}
+	arg.Type = t
 	return
 }
 
@@ -446,11 +489,12 @@ func (p *Parser) parseArg() (ast.Arg, error) {
 	}
 	// assign name
 	arg.Name = ast.VariableExpression{Name: p.curToken.Literal, Token: p.curToken}
+	p.next() // eat name
 
 	if p.peek().Type == token.EQUAL {
 		// we have assign
 		p.eatOfType(token.EQUAL)
-		df, err := p.parseExpression(-1)
+		df, err := p.parseExpression(pLowest)
 		if err != nil {
 			return arg, err
 		}
@@ -464,7 +508,7 @@ func (p *Parser) getPrecedence() int {
 	if prec, ok := precedences[p.curToken.Type]; ok {
 		return prec
 	}
-	return -999
+	return pLowest
 }
 
 func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
@@ -472,10 +516,10 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	prefix, ok := p.prefixExpressionParsers[p.curToken.Type]
 	// not a prefix
 	if !ok {
-		return ast.Null{}, fmt.Errorf("%s is not a prefix operator", p.curToken.Literal, p.curToken)
+		return ast.Null{}, fmt.Errorf("%s is not a prefix operator", p.curToken.Literal)
 	}
 	// we got the left
-	// e.g. for variable assignment it's $var
+	// e.g. for variable assignment it's $
 	left, err := prefix()
 	if err != nil {
 		return left, err
@@ -510,8 +554,20 @@ func (p *Parser) parseVariable() (ast.Expression, error) {
 	return variable, nil
 }
 
+// parseConstant ...
 func (p *Parser) parseConstant() (ast.Expression, error) {
-	panic("implement me")
+	ce := &ast.ConstantExpression{Token: p.curToken}
+	p.next() // eat `const`
+	if err := p.assertTokenType(token.IDENT); err != nil {
+		return ce, err
+	}
+	i, e := p.parseIdentifier()
+	if e != nil {
+		return nil, e
+	}
+	ce.Name = i.(*ast.Identifier)
+
+	return ce, nil
 }
 
 func (p *Parser) parseClassDeclaration() (ast.Expression, error) {
@@ -528,12 +584,13 @@ func (p *Parser) parseAssignment(left ast.Expression) (ast.Expression, error) {
 
 	switch left.(type) {
 	case *ast.VariableExpression:
+	case *ast.ConstantExpression:
 		// do noting, that's okay
 	default:
 		return nil, fmt.Errorf("can not assign to %s", left.String())
 	}
 	as.Left = left
-	right, err := p.parseExpression(-1)
+	right, err := p.parseExpression(pLowest)
 	if err != nil {
 		return left, err
 	}
@@ -564,14 +621,35 @@ func (p *Parser) parseBinaryExpression(left ast.Expression) (ast.Expression, err
 }
 
 func (p *Parser) parseArrayInitialization() (ast.Expression, error) {
-	panic("implement me")
+	array := &ast.ArrayLiteral{Token: p.curToken}
+	p.next() // eat `[`
+	if p.oneOf(token.SQUARE_BRACKET_CLOSING) {
+		goto exit
+	}
+
+	for {
+		expr, err := p.parseExpression(pLowest)
+		if err != nil {
+			return array, err
+		}
+		array.Elements = append(array.Elements, expr)
+		if p.oneOf(token.SQUARE_BRACKET_CLOSING) {
+			break
+		}
+		if e := p.eatOfType(token.COMMA); e != nil {
+			return nil, e
+		}
+	}
+exit:
+	p.next() // eat `]`
+	return array, nil
 }
 
 func (p *Parser) parseIndexExpression(left ast.Expression) (ast.Expression, error) {
 	indexExpression := &ast.IndexExpression{Left: left, Token: p.curToken}
 	p.next() // eat `[`
 
-	value, err := p.parseExpression(-1)
+	value, err := p.parseExpression(pLowest)
 	if err != nil {
 		return indexExpression, err
 	}
@@ -595,7 +673,7 @@ func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
 	ce := &ast.ConditionalExpression{Token: p.curToken}
 	p.next() // eat `if`
 
-	conditionExpression, err := p.parseExpression(-1)
+	conditionExpression, err := p.parseExpression(pLowest)
 	if err != nil {
 		return ce, err
 	}
@@ -621,7 +699,7 @@ func (p *Parser) parseConditionalExpression() (ast.Expression, error) {
 func (p *Parser) parseGroupedExpression() (ast.Expression, error) {
 	// eat `(
 	p.next()
-	exp, err := p.parseExpression(-1)
+	exp, err := p.parseExpression(pLowest)
 	if err != nil {
 		return exp, err
 	}
@@ -648,7 +726,7 @@ func (p *Parser) parseInstanceOfExpression(left ast.Expression) (ast.Expression,
 	iof := ast.InstanceOfExpression{Object: left, Token: p.curToken}
 	p.next() // eat `instanceof`
 
-	right, err := p.parseExpression(-1)
+	right, err := p.parseExpression(pLowest)
 	if err != nil {
 		return iof, err
 	}
@@ -665,7 +743,7 @@ func (p *Parser) parseFunctionCall(left ast.Expression) (ast.Expression, error) 
 	case *ast.VariableExpression:
 		call.Target = def
 	default:
-		return nil, fmt.Errorf("expected either ident or variable %v given", left)
+		return nil, fmt.Errorf("expected either ident or variable, %v given", left)
 	}
 	var err error
 	call.CallArgs, err = p.parseExpressionList()
@@ -682,7 +760,7 @@ func (p *Parser) parseExpressionList() ([]ast.Expression, error) {
 	}
 
 	for {
-		arg, err := p.parseExpression(-1)
+		arg, err := p.parseExpression(pLowest)
 		if err != nil {
 			return list, err
 		}
@@ -722,7 +800,7 @@ func (p *Parser) parseObjectFetch(left ast.Expression) (ast.Expression, error) {
 	}
 
 	for {
-		arg, err := p.parseExpression(-1)
+		arg, err := p.parseExpression(pLowest)
 		if err != nil {
 			return methodCall, nil
 		}
