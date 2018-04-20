@@ -13,17 +13,22 @@ import (
 var precedences = map[token.TokenType]int{
 	token.CURLY_OPEN: 4,
 
-	token.MOD:                 0,
-	token.EQUAL:               0,
-	token.IS_SMALLER:          0,
-	token.IS_SMALLER_OR_EQUAL: 0,
-	token.IS_GREATER:          0,
-	token.IS_GREATER_OR_EQUAL: 0,
+
+	token.EQUAL:               1,
+	token.IS_EQUAL:            1,
+	token.IS_IDENTICAL:        1,
+	token.IS_SMALLER:          1,
+	token.IS_SMALLER_OR_EQUAL: 1,
+	token.IS_GREATER:          1,
+	token.IS_GREATER_OR_EQUAL: 1,
+
 
 	token.PARENTHESIS_OPENING: 1,
 	//
-	token.PLUS:  1,
-	token.MINUS: 1,
+	token.PLUS:  2,
+	token.MINUS: 2,
+	token.MOD:   3,
+
 	// biggest
 	token.DIV: 100,
 	token.MUL: 100,
@@ -242,9 +247,10 @@ func (p *Parser) parseNamespaceStatement() (ns *ast.NamespaceStatement, err erro
 
 // parseUseStatement parses statements like
 // `use Symfony\Component\HttpFoundation\Response;`
-func (p *Parser) parseUseStatement() (us ast.UseStatement, err error) {
-	us.Token = p.curToken
+func (p *Parser) parseUseStatement() (us *ast.UseStatement, err error) {
+	us = &ast.UseStatement{Token: p.curToken}
 	namespace := make([]string, 0, 8)
+
 	for {
 		p.next()
 		if err = p.assertTokenType(token.IDENT); err != nil {
@@ -320,13 +326,28 @@ func (p *Parser) parseFunctionDeclaration() (ast.Expression, error) {
 	return fun, err
 }
 
+func (p *Parser) oneOf(ts ...token.TokenType) bool {
+	for _, t := range ts {
+		if p.curToken.Type == t {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Parser) parseReturnStatement() (ast.Statement, error) {
+	r := &ast.ReturnStatement{Token: p.curToken}
 	p.next() // eat `return`
+	if p.oneOf(token.SEMICOLON, token.CURLY_CLOSING) {
+		r.Value = &ast.Null{}
+		return r, nil
+	}
 	val, e := p.parseExpression(-1)
 	if e != nil {
 		return nil, e
 	}
-	return &ast.ReturnStatement{Value: val}, nil
+	r.Value = val
+	return r, nil
 }
 
 func (p *Parser) parseArgs() ([]ast.Arg, error) {
@@ -528,9 +549,10 @@ func (p *Parser) parseBinaryExpression(left ast.Expression) (ast.Expression, err
 	// operator
 	be.Op = p.curToken.Literal
 	be.Token = p.curToken
+	precedence := precedences[p.curToken.Type]
 	p.next() // eat operator
 
-	right, err := p.parseExpression(-1)
+	right, err := p.parseExpression(precedence)
 
 	if err != nil {
 		return nil, err

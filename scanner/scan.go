@@ -123,6 +123,7 @@ func (s *Scanner) backup() {
 	s.cur = s.src[s.offset]
 }
 
+// Next ...
 func (s *Scanner) Next() (tok token.Token) {
 	s.skipWhitespace()
 

@@ -9,9 +9,18 @@ import (
 
 type stateType struct {
 	namespace string
+	uses      map[string]string
 }
 
-var state = stateType{}
+func newState() *stateType {
+	s := new(stateType)
+	s.namespace = ""
+	s.uses = make(map[string]string)
+
+	return s
+}
+
+var state = newState()
 
 var opMethods = map[string]string{
 	"+": "__add",
@@ -52,6 +61,10 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	switch node := node.(type) {
 	case *ast.NamespaceStatement:
 		state.namespace = node.Namespace
+	case *ast.UseStatement:
+		for _, name := range node.Classes {
+			state.uses[name] = node.Namespace + "\\" + name
+		}
 	case *ast.ReturnStatement:
 		v, e := Eval(node.Value, ctx)
 		if e != nil {
@@ -63,6 +76,9 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 			RegisterFunc(object.NewUserFunc(state.namespace, node.Name.Value, node.Args, node.Block))
 	case *ast.FunctionCall:
 		callName := node.Target.Value
+		if use, ok := state.uses[callName]; ok {
+			callName = use
+		}
 		fun, e := ctx.GetFunctionTable().Find(state.namespace, callName)
 		if e != nil {
 			return nil, e
