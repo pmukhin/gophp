@@ -17,4 +17,5 @@ $antotherVar = 365
 ### Everything (almost) is epxression
 ```php
 $booleanVar = if (is<Iterable>($array)) { someResult() } else { someOtherResult() }
+$integerVar = try { someHeavyCalculation() } catch (MemoryException $e) { 0 }
 ```
