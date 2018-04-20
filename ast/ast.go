@@ -574,7 +574,7 @@ func (ForEachExpression) expressionNode() {}
 // substr($str, 0)
 type FunctionCall struct {
 	Token    token.Token
-	Target   *Identifier
+	Target   Expression
 	CallArgs []Expression
 }
 
