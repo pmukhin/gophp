@@ -20,6 +20,10 @@ func (p *Formatter) Format(message string, pos int) error {
 %s
 %s
 `
+	if pos >= len(p.data) {
+		panic("something nasty happened: pos is greater than length of data")
+	}
+
 	lineNum, linePos, line := p.getLine(pos)
 	pointer := strings.Repeat(" ", linePos)
 	pointer += "^"

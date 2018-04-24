@@ -159,18 +159,13 @@ func (p *Parser) Parse() (*ast.Module, error) {
 		st := p.parseStatement()
 		if st != nil {
 			program.Statements = append(program.Statements, st)
+			continue
 		}
 		if p.err != nil {
 			return nil, p.err
 		}
 	}
 	return program, nil
-}
-
-func (p *Parser) skipComment() {
-	for p.curToken.Type == token.COMMENT || p.curToken.Type == token.SEMICOLON {
-		p.next()
-	}
 }
 
 func (p *Parser) parseForeach() ast.Expression {
@@ -206,10 +201,12 @@ func (p *Parser) parseForeach() ast.Expression {
 	return foreach
 }
 
+// parseFor ... will there be for loop?
 func (p *Parser) parseFor() ast.Expression {
 	panic("not implemented")
 }
 
+// parseLoop parsers all sorts of loop starting with `for`
 func (p *Parser) parseLoop() ast.Expression {
 	if p.peek().Type == token.EACH {
 		p.next() // eat `for`s
@@ -219,17 +216,16 @@ func (p *Parser) parseLoop() ast.Expression {
 }
 
 func (p *Parser) parseStatement() ast.Statement {
-	p.skipComment()
-
 	defer func() {
-		if p.oneOf(token.SEMICOLON, token.NEWLINE) {
+		if p.oneOf(token.SEMICOLON) {
 			p.next() // eat `;` or `\n`
 		}
 	}()
 
 	switch p.curToken.Type {
-	//case token.EOF:
-	//	return nil
+	case token.COMMENT:
+		p.next() // eat comment
+		return nil
 	case token.USE:
 		// use NameSpace\\Class;
 		return p.parseUseStatement()
@@ -550,6 +546,7 @@ func (p *Parser) parseMethod() ast.Expression {
 func (p *Parser) parseClassDeclaration() ast.Expression {
 	cde := ast.ClassDeclarationExpression{Token: p.curToken}
 	p.next() // eat `class`
+
 	cde.Name = p.parseIdentifier().(*ast.Identifier)
 	cde.Block = p.parseBlock()
 

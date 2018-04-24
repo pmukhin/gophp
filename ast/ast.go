@@ -991,8 +991,8 @@ func (ClassDeclarationExpression) TokenLiteral() string {
 	panic("implement me")
 }
 
-func (ClassDeclarationExpression) String() string {
-	panic("implement me")
+func (cde ClassDeclarationExpression) String() string {
+	return "class " + cde.Name.String() + " " + cde.Block.String()
 }
 
 func (ClassDeclarationExpression) Accept(Visitor) {
