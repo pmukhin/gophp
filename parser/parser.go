@@ -8,6 +8,7 @@ import (
 	"strings"
 	"strconv"
 	phperror "github.com/pmukhin/gophp/error"
+	"reflect"
 )
 
 const (
@@ -33,8 +34,6 @@ var precedences = map[token.TokenType]int{
 	token.IS_GREATER:          1,
 	token.IS_GREATER_OR_EQUAL: 1,
 
-	token.OBJECT_OPERATOR: 1,
-
 
 	token.PARENTHESIS_OPENING: 10,
 	//
@@ -44,6 +43,8 @@ var precedences = map[token.TokenType]int{
 	token.MOD: pProduct,
 	token.DIV: pProduct,
 	token.MUL: pProduct,
+
+	token.OBJECT_OPERATOR: 5,
 
 	token.INC: pPrefix,
 	token.DEC: pPrefix,
@@ -120,7 +121,7 @@ func (p *Parser) init() {
 	p.prefixExpressionParsers[token.IDENT] = p.parseIdentifier
 	p.prefixExpressionParsers[token.NUMBER] = p.parseInteger
 	p.prefixExpressionParsers[token.FOR] = p.parseLoop
-	p.prefixExpressionParsers[token.PUBLIC] = p.parseMethod
+	p.prefixExpressionParsers[token.PUBLIC] = p.parseMethodDeclaration
 	p.prefixExpressionParsers[token.NEW] = p.parseClassInstantiation
 
 	p.infixExpressionParsers = make(map[token.TokenType]infixParser)
@@ -159,7 +160,6 @@ func (p *Parser) Parse() (*ast.Module, error) {
 		st := p.parseStatement()
 		if st != nil {
 			program.Statements = append(program.Statements, st)
-			continue
 		}
 		if p.err != nil {
 			return nil, p.err
@@ -532,7 +532,7 @@ func (p *Parser) parseClassInstantiation() ast.Expression {
 	return cle
 }
 
-func (p *Parser) parseMethod() ast.Expression {
+func (p *Parser) parseMethodDeclaration() ast.Expression {
 	mde := &ast.MethodDeclarationExpression{Token: p.curToken}
 	mde.Access = modifier(p.curToken.Type)
 	p.next() // eat `public|protected|private`
@@ -746,13 +746,13 @@ func (p *Parser) parseFetchExpression(left ast.Expression) ast.Expression {
 	p.next() // eat `->`
 
 	fe.Left = left
-	fe.Right = p.parseExpression(-1)
+	fe.Right = p.parseExpression(precedences[fe.Token.Type])
 
 	switch fe.Right.(type) {
 	case *ast.FunctionCall:
 	case *ast.Identifier:
 	default:
-		p.emitError("unexpected token %s", p.curToken.Literal)
+		p.emitError("unexpected either an Identifier or a FunctionCall, %s given", reflect.TypeOf(fe.Right).String())
 		return nil
 	}
 
