@@ -20,11 +20,13 @@ println(makeArray()) // []
 function helloWorld(String $name) { println("Hello " + $name) }
 $helloFunc = helloWorld
 
-foreach ["Pavel", "Kristina"] as $value {
+foreach ["Pavel", "Kristina"] as $index => $value {
+  function(int $i) { printf("" + $i + ": ") }($index)
   $helloFunc($value)
 }
-// Hello Pavel
-// Hello Kristina
+
+// 0: Hello Pavel
+// 1: Hello Kristina
 ```
 
 ### Range operator
