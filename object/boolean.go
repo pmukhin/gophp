@@ -1,7 +1,7 @@
 package object
 
 var (
-	BooleanClass = internalClass{
+	BooleanClass = &InternalClass{
 		name:      "Boolean",
 		final:     true,
 		abstract:  false,

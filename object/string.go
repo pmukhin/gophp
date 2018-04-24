@@ -67,7 +67,7 @@ var (
 		"__index": newMethod(index, VisibilityPublic),
 	}
 
-	stringClass = internalClass{
+	stringClass = &InternalClass{
 		name:      "String",
 		final:     true,
 		abstract:  false,

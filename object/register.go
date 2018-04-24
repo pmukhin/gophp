@@ -7,6 +7,7 @@ func RegisterGlobals(ctx Context) error {
 	registerOsConstants(ctx)
 	registerIntConstants(ctx)
 	registerStringConstants(ctx)
+	registerArrayConstants(ctx)
 
 	return nil
 }

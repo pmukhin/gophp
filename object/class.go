@@ -20,11 +20,6 @@ type Class interface {
 
 type InternalConstructor func(value interface{}) (Object, error)
 
-type InternalClass interface {
-	Class
-	InternalConstructor(value interface{}) (Object, error)
-}
-
 type Method interface {
 	Call(this Object, args ...Object) (Object, error)
 	Visibility() Visibility
@@ -45,7 +40,7 @@ type Object interface {
 	Id() string
 }
 
-type internalClass struct {
+type InternalClass struct {
 	name                string
 	final               bool
 	abstract            bool
@@ -54,54 +49,44 @@ type internalClass struct {
 	methodSet           MethodSet
 }
 
-func (c internalClass) InternalConstructor(value interface{}) (Object, error) {
+func (c InternalClass) InternalConstructor(value interface{}) (Object, error) {
 	return c.internalConstructor(value)
 }
 
-func (c internalClass) Class() Class {
+func (c InternalClass) Class() Class {
 	panic("implement me")
 }
 
-func (c internalClass) Id() string {
+func (c InternalClass) Id() string {
 	panic("implement me")
 }
 
-func (c internalClass) Name() string {
+func (c InternalClass) Name() string {
 	return c.name
 }
 
-func (c internalClass) Constructor() Method {
+func (c InternalClass) Constructor() Method {
 	return c.constructor
 }
 
-func (internalClass) SuperClass() Class {
+func (InternalClass) SuperClass() Class {
 	panic("implement me")
 }
 
-func (c internalClass) IsFinal() bool {
+func (c InternalClass) IsFinal() bool {
 	return c.final
 }
 
-func (c internalClass) IsAbstract() bool {
+func (c InternalClass) IsAbstract() bool {
 	return c.abstract
 }
 
-func (c internalClass) Methods() MethodSet {
+func (c InternalClass) Methods() MethodSet {
 	return c.methodSet
 }
 
-func (internalClass) StaticMethods() MethodSet {
+func (InternalClass) StaticMethods() MethodSet {
 	panic("implement me")
-}
-
-func newInternalClass(name string, final, abstract bool, constructor Method, ic InternalConstructor) InternalClass {
-	return &internalClass{
-		name:                name,
-		final:               final,
-		abstract:            abstract,
-		constructor:         constructor,
-		internalConstructor: ic,
-	}
 }
 
 type methodSet struct {

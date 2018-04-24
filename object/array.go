@@ -44,13 +44,17 @@ var (
 		"append": newMethod(arrayAppend, VisibilityPublic),
 	}
 
-	arrayClass = internalClass{
+	arrayClass = &InternalClass{
 		name:      "Array",
 		final:     false,
 		abstract:  false,
 		methodSet: newMethodSet(arrayMethods),
 	}
 )
+
+func registerArrayConstants(ctx Context) {
+	ctx.SetGlobal("Array", arrayClass)
+}
 
 // NewArray ...
 func NewArray(os ...Object) (Object, error) {

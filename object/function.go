@@ -27,7 +27,7 @@ var (
 		"__toString": newMethod(funToString, VisibilityPublic),
 	}
 
-	functionClass = internalClass{
+	functionClass = &InternalClass{
 		name:      "Function",
 		final:     true,
 		abstract:  false,

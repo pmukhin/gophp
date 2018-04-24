@@ -125,7 +125,7 @@ var (
 	}
 
 	//IntegerClass = newInternalClass("Integer", true, false, integerConstructor{}, InternalConstructor(ic))
-	IntegerClass = internalClass{
+	IntegerClass = &InternalClass{
 		name:                "Int",
 		final:               true,
 		abstract:            false,

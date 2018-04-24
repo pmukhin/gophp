@@ -7,7 +7,7 @@ var (
 		}, VisibilityPublic),
 	}
 
-	classNull = internalClass{
+	classNull = &InternalClass{
 		name:      "Null",
 		final:     true,
 		methodSet: newMethodSet(nullMethods),
