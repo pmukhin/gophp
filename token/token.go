@@ -5,6 +5,7 @@ type (
 	Token struct {
 		Type    TokenType
 		Literal string
+		Pos     int
 	}
 )
 
@@ -127,6 +128,7 @@ const (
 	IMPLEMENTS                /* "implements"			*/
 	OBJECT_OPERATOR           /* "->"			*/
 	DOUBLE_ARROW              /* "=>"			*/
+	DOUBLE_DOT                /* .. */
 	LIST                      /* "list"			*/
 	ARRAY                     /* "array"			*/
 	CALLABLE                  /* "callable"			*/

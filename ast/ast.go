@@ -17,6 +17,12 @@ const (
 	ProgramType
 )
 
+const (
+	ModPublic    = iota
+	ModPrivate
+	ModProtected
+)
+
 type Node interface {
 	// Pos returns the position of first character belonging to the node
 	Pos() int
@@ -451,9 +457,7 @@ type UnaryExpression struct {
 	Right    Expression
 }
 
-func (UnaryExpression) Pos() int {
-	panic("implement me")
-}
+func (ue UnaryExpression) Pos() int { return ue.Token.Pos }
 
 func (UnaryExpression) End() int {
 	panic("implement me")
@@ -464,7 +468,7 @@ func (UnaryExpression) TokenLiteral() string {
 }
 
 // String ...
-func (pe UnaryExpression) String() string { return pe.Op + pe.Right.String() }
+func (ue UnaryExpression) String() string { return ue.Op + ue.Right.String() }
 
 // expressionNode ...
 func (UnaryExpression) expressionNode() {}
@@ -482,9 +486,7 @@ func (be BinaryExpression) Accept(Visitor) {
 	panic("implement me")
 }
 
-func (BinaryExpression) Pos() int {
-	panic("implement me")
-}
+func (be BinaryExpression) Pos() int { return be.Token.Pos }
 
 func (BinaryExpression) End() int {
 	panic("implement me")
@@ -509,9 +511,7 @@ type WhileExpression struct {
 	Body      *BlockStatement
 }
 
-func (WhileExpression) Pos() int {
-	panic("implement me")
-}
+func (we WhileExpression) Pos() int { return we.Token.Pos }
 
 func (WhileExpression) End() int {
 	panic("implement me")
@@ -542,8 +542,8 @@ func (fee ForEachExpression) Accept(Visitor) {
 	panic("implement me")
 }
 
-func (ForEachExpression) Pos() int {
-	panic("implement me")
+func (fee ForEachExpression) Pos() int {
+	return fee.Token.Pos
 }
 
 func (ForEachExpression) End() int {
@@ -569,6 +569,67 @@ func (fee ForEachExpression) String() string {
 
 // expressionNode ...
 func (ForEachExpression) expressionNode() {}
+
+// ForExpression ...
+type ForExpression struct {
+	Token     token.Token
+	Init      Expression
+	Condition Expression
+	Inc       Expression
+}
+
+func (fe ForExpression) Pos() int {
+	return fe.Token.Pos
+}
+
+func (ForExpression) End() int {
+	panic("implement me")
+}
+
+func (ForExpression) TokenLiteral() string {
+	panic("implement me")
+}
+
+func (ForExpression) String() string {
+	panic("implement me")
+}
+
+func (ForExpression) Accept(Visitor) {
+	panic("implement me")
+}
+
+// expressionNode ...
+func (ForExpression) expressionNode() {}
+
+// RangeExpression ...
+type RangeExpression struct {
+	Token token.Token
+	Left  Expression
+	Right Expression
+}
+
+func (re RangeExpression) Pos() int {
+	return re.Token.Pos
+}
+
+func (RangeExpression) End() int {
+	panic("implement me")
+}
+
+func (RangeExpression) TokenLiteral() string {
+	panic("implement me")
+}
+
+func (re RangeExpression) String() string {
+	return re.Left.String() + ".." + re.Right.String()
+}
+
+func (RangeExpression) Accept(Visitor) {
+	panic("implement me")
+}
+
+// expressionNode ...
+func (RangeExpression) expressionNode() {}
 
 // FunctionCall represents
 // substr($str, 0)
@@ -663,7 +724,7 @@ type FunctionDeclarationExpression struct {
 	Token      token.Token
 	Anonymous  bool
 	Name       *Identifier
-	Args       []Arg
+	Args       []*Arg
 	ReturnType *Identifier
 	Block      *BlockStatement
 }
@@ -704,6 +765,13 @@ func (fde FunctionDeclarationExpression) String() string {
 
 func (FunctionDeclarationExpression) expressionNode() {
 	panic("implement me")
+}
+
+type MethodDeclarationExpression struct {
+	Token   token.Token
+	Access  int32
+	IsFinal bool
+	FunctionDeclarationExpression
 }
 
 // Module is the whole program for file
@@ -750,7 +818,7 @@ func (Module) statementNode() {
 // new DateTime('now')
 type ClassInstantiationExpression struct {
 	Token     token.Token
-	ClassName Identifier
+	ClassName *Identifier
 	Args      []Expression
 }
 
@@ -904,6 +972,34 @@ func (ConstantExpression) expressionNode() {
 // statementNode ...
 func (NamespaceStatement) statementNode() {}
 
+type ClassDeclarationExpression struct {
+	Token token.Token
+	Name  *Identifier
+	Block *BlockStatement
+}
+
+func (cds ClassDeclarationExpression) Pos() int {
+	return cds.Token.Pos
+}
+
+func (ClassDeclarationExpression) End() int {
+	panic("implement me")
+}
+
+func (ClassDeclarationExpression) TokenLiteral() string {
+	panic("implement me")
+}
+
+func (ClassDeclarationExpression) String() string {
+	panic("implement me")
+}
+
+func (ClassDeclarationExpression) Accept(Visitor) {
+	panic("implement me")
+}
+
+func (ClassDeclarationExpression) expressionNode() {}
+
 type ReturnStatement struct {
 	Token token.Token
 	Value Expression
@@ -930,3 +1026,34 @@ func (ReturnStatement) Accept(Visitor) {
 }
 
 func (ReturnStatement) statementNode() {}
+
+// FetchExpression ...
+type FetchExpression struct {
+	Token token.Token
+	Left  Expression
+	Right Expression
+}
+
+func (fe FetchExpression) Pos() int {
+	return fe.Token.Pos
+}
+
+func (FetchExpression) End() int {
+	panic("implement me")
+}
+
+func (FetchExpression) TokenLiteral() string {
+	panic("implement me")
+}
+
+// String ...
+func (fe FetchExpression) String() string {
+	return fe.Left.String() + "->" + fe.Right.String()
+}
+
+func (FetchExpression) Accept(Visitor) {
+	panic("implement me")
+}
+
+// expressionNode ...
+func (FetchExpression) expressionNode() {}

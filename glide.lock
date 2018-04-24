@@ -1,10 +1,14 @@
-hash: 6287036e777fea4ffe672e206332899ae85cf51ca3dfa8a5b33aa9f28bfdee75
-updated: 2018-04-19T10:59:35.743324609+07:00
+hash: b87190ced7c9b8dabf36f46d69e6aa66ffaca2c93f61ea5ebc14e5fdc47a0d9c
+updated: 2018-04-23T21:22:22.19705705+07:00
 imports:
+- name: github.com/golang-collections/collections
+  version: 604e922904d35e97f98a774db7881f049cd8d970
+  subpackages:
+  - stack
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/spf13/cobra
-  version: 615425954c3b0d9485a7027d4d451fdcdfdee84e
+  version: 7ee208b09f12c42bb7f5b0e14cd071706ee17993
   subpackages:
   - cobra
 - name: github.com/spf13/pflag

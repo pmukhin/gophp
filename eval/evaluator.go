@@ -3,24 +3,43 @@ package eval
 import (
 	"github.com/pmukhin/gophp/ast"
 	"github.com/pmukhin/gophp/object"
-	"errors"
 	"fmt"
+	"errors"
+	"strings"
+	"github.com/golang-collections/collections/stack"
 )
 
+type exceptionError struct {
+	class   object.Object
+	message string
+}
+
+func (e exceptionError) Error() string {
+	return e.message
+}
+
 type stateType struct {
-	namespace string
-	uses      map[string]string
+	namespace    string
+	namespaceSet bool
+	uses         map[string]string
+}
+
+func (s *stateType) SetNamespace(ns string) (error) {
+	if s.namespaceSet {
+		return errors.New("namespace is already set")
+	}
+	s.namespace = ns
+	s.namespaceSet = true
+
+	return nil
 }
 
 func newState() *stateType {
 	s := new(stateType)
-	s.namespace = ""
 	s.uses = make(map[string]string)
 
 	return s
 }
-
-var state = newState()
 
 var opMethods = map[string]string{
 	"+": "__add",
@@ -49,39 +68,73 @@ func (returnObject) Class() object.Class { panic("implement me") }
 
 func (returnObject) Id() string { panic("implement me") }
 
-func classExists(class string) bool {
-	return false
+// Evaluator ...
+type Evaluator interface {
+	Eval(ast.Node, object.Context) (object.Object, error)
 }
 
-func getClass(class string) object.Class {
-	return nil
+func New() Evaluator {
+	ev := new(evaluator)
+	ev.stack = stack.New()
+	ev.state = newState()
+
+	return ev
 }
 
-func evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Expression, ctx object.Context) (object.Object, error) {
+type evaluator struct {
+	stack *stack.Stack
+	state *stateType
+}
+
+//
+func (ev *evaluator) evalBlock(ctx object.Context, node *ast.BlockStatement) (object.Object, error) {
+	var ret object.Object = nil
+
+	for _, st := range node.Statements {
+		r, err := ev.Eval(st, ctx)
+		if err != nil {
+			return returnObject{value: object.Null}, err
+		}
+		// if it's return
+		if ret, ok := r.(returnObject); ok {
+			return ret, nil
+		}
+		// add
+		ret = r
+	}
+
+	if ret == nil {
+		ret = returnObject{value: object.Null}
+	}
+
+	return ret, nil
+}
+
+func (ev *evaluator) evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Expression, ctx object.Context) (object.Object, error) {
 	callName := name.Value
-	if use, ok := state.uses[callName]; ok {
+	if use, ok := ev.state.uses[callName]; ok {
 		callName = use
 	}
-	fun, e := ctx.GetFunctionTable().Find(state.namespace, callName)
-	if e != nil {
-		return nil, e
+	fun, err := ctx.GetGlobal(callName)
+	if err != nil {
+		return nil, err
 	}
 	args := make([]object.Object, len(callArgs))
 	for i, a := range callArgs {
-		args[i], e = Eval(a, ctx)
-		if e != nil {
-			return nil, e
+		args[i], err = ev.Eval(a, ctx)
+		if err != nil {
+			return nil, err
 		}
 	}
 	switch realFun := fun.(type) {
 	case *object.InternalFunction:
 		return realFun.Call(ctx, args...)
 	case *object.UserFunction:
-		funCtx := object.NewContext(ctx, ctx.GetFunctionTable())
+		funCtx := object.CloneContext(ctx, nil)
 		for i, definedArg := range realFun.Args() {
 			funCtx.SetContextVar(definedArg.Name.Name, args[i])
 		}
-		return Eval(realFun.Block(), funCtx)
+		return ev.Eval(realFun.Block(), funCtx)
 	default:
 		panic("unexpected function type")
 	}
@@ -94,8 +147,8 @@ func unpackReturnObject(o object.Object, err error) (object.Object, error) {
 	return o, err
 }
 
-func evalForeach(foreach *ast.ForEachExpression, ctx object.Context) (object.Object, error) {
-	array, err := Eval(foreach.Array, ctx)
+func (ev *evaluator) evalForeach(foreach *ast.ForEachExpression, ctx object.Context) (object.Object, error) {
+	array, err := ev.Eval(foreach.Array, ctx)
 	if err != nil {
 		return object.Null, err
 	}
@@ -104,37 +157,74 @@ func evalForeach(foreach *ast.ForEachExpression, ctx object.Context) (object.Obj
 			ctx.SetContextVar(foreach.Key.Name, &object.IntegerObject{Value: int64(index)})
 		}
 		ctx.SetContextVar(foreach.Value.Name, value)
-		_, err := Eval(foreach.Block, ctx)
+		_, err := ev.Eval(foreach.Block, ctx)
 
 		if err != nil {
-			panic(err)
+			return object.Null, err
 		}
 	}
+
 	return object.Null, nil
 }
 
-func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
-	switch node := node.(type) {
-	case *ast.ArrayLiteral:
-		values := make([]object.Object, len(node.Elements))
-		for i, expression := range node.Elements {
-			result, err := Eval(expression, ctx)
-			if err != nil {
-				return object.Null, err
-			}
-			values[i] = result
+// registerFunc puts func into globals table
+func registerFunc(ctx object.Context, fun object.FunctionObject) error {
+	return ctx.SetGlobal(fun.Name(), fun)
+}
+
+func (ev *evaluator) wrap(err error, node ast.Node) error {
+	stackTrace := make([]string, ev.stack.Len())
+	for i := 0; i < ev.stack.Len(); i++ {
+		stackTrace[i] = ev.stack.Pop().(string)
+	}
+	return fmt.Errorf("%s at %s", err.Error(), strings.Join(stackTrace, "\n"))
+}
+
+func (ev *evaluator) Eval(node ast.Node, ctx object.Context) (object.Object, error) {
+	return ev.doEval(node, ctx)
+}
+
+func (ev *evaluator) evalFunctionCall(node *ast.FunctionCall, ctx object.Context) (object.Object, error) {
+	ev.stack.Push(fmt.Sprintf("%s", node.Target.String()))
+	if registeredFuncName, ok := node.Target.(*ast.Identifier); ok {
+		return unpackReturnObject(ev.evalRegisteredFunc(registeredFuncName, node.CallArgs, ctx))
+	}
+	anonymous := node.Target.(ast.Expression)
+	resolve, err := ev.Eval(anonymous, ctx)
+	if err != nil {
+		return object.Null, err
+	}
+	return unpackReturnObject(ev.Eval(resolve.(object.FunctionObject).Block(), ctx))
+}
+
+func (ev *evaluator) evalArray(node *ast.ArrayLiteral, ctx object.Context) (object.Object, error) {
+	values := make([]object.Object, len(node.Elements))
+	for i, expression := range node.Elements {
+		result, err := ev.Eval(expression, ctx)
+		if err != nil {
+			return object.Null, err
 		}
-		return object.NewArray(values...)
+		values[i] = result
+	}
+	return object.NewArray(values...)
+}
+
+func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, error) {
+	switch node := node.(type) {
+	case *ast.RangeExpression:
+		return ev.unpackRange(node, ctx)
+	case *ast.ArrayLiteral:
+		return ev.evalArray(node, ctx)
 	case *ast.NamespaceStatement:
-		state.namespace = node.Namespace
+		ev.state.SetNamespace(node.Namespace)
 	case *ast.UseStatement:
 		for _, name := range node.Classes {
-			state.uses[name] = node.Namespace + "\\" + name
+			ev.state.uses[name] = node.Namespace + "\\" + name
 		}
 	case *ast.ForEachExpression:
-		return evalForeach(node, ctx)
+		return ev.evalForeach(node, ctx)
 	case *ast.ReturnStatement:
-		v, e := Eval(node.Value, ctx)
+		v, e := ev.Eval(node.Value, ctx)
 		if e != nil {
 			return object.Null, e
 		}
@@ -143,21 +233,13 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		if node.Anonymous == true {
 			return object.NewAnonymousFunc(node.Args, node.Block), nil
 		}
-		return object.Null, ctx.GetFunctionTable().
-			RegisterFunc(object.NewUserFunc(state.namespace, node.Name.Value, node.Args, node.Block))
+		return object.Null, registerFunc(ctx, object.NewUserFunc(ev.state.namespace, node.Name.Value, node.Args, node.Block))
 	case *ast.FunctionCall:
-		if registeredFuncName, ok := node.Target.(*ast.Identifier); ok {
-			return unpackReturnObject(evalRegisteredFunc(registeredFuncName, node.CallArgs, ctx))
-		}
-		if anonymous, ok := node.Target.(ast.Expression); ok {
-			resolve, err := Eval(anonymous, ctx)
-			if err != nil {
-				return object.Null, err
-			}
-			return unpackReturnObject(Eval(resolve.(object.FunctionObject).Block(), ctx))
-		}
+		return ev.evalFunctionCall(node, ctx)
+	case *ast.FetchExpression:
+		return ev.evalFetchExpression(node, ctx)
 	case *ast.ConditionalExpression:
-		condition, err := Eval(node.Condition, ctx)
+		condition, err := ev.Eval(node.Condition, ctx)
 		if err != nil {
 			return object.Null, err
 		}
@@ -178,10 +260,10 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 			boolean = b
 		}
 		if boolean.Value {
-			return Eval(node.Consequence, ctx)
+			return ev.Eval(node.Consequence, ctx)
 		}
 		if node.Alternative != nil {
-			return Eval(node.Alternative, ctx)
+			return ev.Eval(node.Alternative, ctx)
 		}
 		return object.Null, err
 	case *ast.Identifier:
@@ -194,13 +276,13 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		// other constant?
 		return ctx.GetGlobal(node.Value)
 	case *ast.BinaryExpression:
-		l, e := Eval(node.Left, ctx)
-		if e != nil {
-			return nil, e
+		l, err := ev.Eval(node.Left, ctx)
+		if err != nil {
+			return nil, err
 		}
-		r, e := Eval(node.Right, ctx)
-		if e != nil {
-			return nil, e
+		r, err := ev.Eval(node.Right, ctx)
+		if err != nil {
+			return nil, err
 		}
 		if m := l.Class().Methods().Find(opMethods[node.Op]); m != nil {
 			return m.Call(l, r)
@@ -208,11 +290,11 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		return nil, fmt.Errorf("operator %s (method %s) is not defined on type %s",
 			node.Op, opMethods[node.Op], l.Class().Name())
 	case *ast.IndexExpression:
-		l, e := Eval(node.Left, ctx)
-		if e != nil {
-			return nil, e
+		l, err := ev.Eval(node.Left, ctx)
+		if err != nil {
+			return nil, err
 		}
-		index, e := Eval(node.Index, ctx)
+		index, err := ev.Eval(node.Index, ctx)
 		if i := l.Class().Methods().Find("__index"); i != nil {
 			return i.Call(l, index)
 		}
@@ -230,7 +312,7 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	case *ast.Null:
 		return object.Null, nil
 	case *ast.AssignmentExpression:
-		right, e := Eval(node.Right, ctx)
+		right, e := ev.Eval(node.Right, ctx)
 		if e != nil {
 			return nil, e
 		}
@@ -243,34 +325,20 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 			return right, e
 		}
 	case *ast.ClassInstantiationExpression:
-		name := node.ClassName.String()
-		if !classExists(name) {
-			return nil, errors.New("class " + name + " does not exist")
-		}
-		args := make([]object.Object, len(node.Args))
-		for i, argExpression := range node.Args {
-			a, e := Eval(argExpression, ctx)
-			if e != nil {
-				return nil, e
-			}
-			args[i] = a
-		}
-		cls := getClass(name)
-
-		return cls.Constructor().Call(nil, args...)
+		panic("not implemented")
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression, ctx)
+		return ev.Eval(node.Expression, ctx)
 	case *ast.BlockStatement:
-		return evalBlock(ctx, node)
+		return ev.evalBlock(ctx, node)
 	case *ast.Module:
 		var (
-			r object.Object
-			e error
+			r   object.Object
+			err error
 		)
 		for _, st := range node.Statements {
-			r, e = Eval(st, ctx)
-			if e != nil {
-				return nil, e
+			r, err = ev.Eval(st, ctx)
+			if err != nil {
+				return nil, err
 			}
 		}
 		return r, nil
@@ -278,4 +346,79 @@ func Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 		return nil, fmt.Errorf("unexpected node %s", node.String())
 	}
 	return object.Null, nil
+}
+
+func (ev *evaluator) unpackRange(ex *ast.RangeExpression, ctx object.Context) (object.Object, error) {
+	valLeft, err := ev.Eval(ex.Left, ctx)
+	if err != nil {
+		return object.Null, err
+	}
+	valRight, err := ev.Eval(ex.Right, ctx)
+	if err != nil {
+		return object.Null, err
+	}
+
+	intLeft, ok := valLeft.(*object.IntegerObject)
+	if !ok {
+		return object.Null, fmt.Errorf("can not iterate over %s", intLeft.Class().Name())
+	}
+	intRight, ok := valRight.(*object.IntegerObject)
+	if !ok {
+		return object.Null, fmt.Errorf("can not iterate over %s", intLeft.Class().Name())
+	}
+
+	l, r := intLeft.Value, intRight.Value
+	array := &object.ArrayObject{}
+
+	if l == r {
+		return array, nil
+	}
+	if l < r {
+		for l < r {
+			array.Values = append(array.Values, &object.IntegerObject{Value: l})
+			l++
+		}
+		return array, nil
+	}
+	for l > r {
+		array.Values = append(array.Values, &object.IntegerObject{Value: l})
+		l++
+	}
+	return array, nil
+}
+
+// evalFetchExpression ...
+func (ev *evaluator) evalFetchExpression(ex *ast.FetchExpression, ctx object.Context) (object.Object, error) {
+	obj, err := ev.Eval(ex.Left, ctx)
+	if err != nil {
+		return object.Null, err
+	}
+
+	switch r := ex.Right.(type) {
+	case *ast.FunctionCall:
+		return ev.evalMethodCall(obj, r, ctx)
+	default:
+		return object.Null, errors.New("unexpected right node")
+	}
+}
+
+// evalMethodCall ...
+func (ev *evaluator) evalMethodCall(obj object.Object, node *ast.FunctionCall, ctx object.Context) (object.Object, error) {
+	methodName, ok := node.Target.(*ast.Identifier);
+	if !ok {
+		return object.Null, errors.New("method name must be an Identifier")
+	}
+	method := obj.Class().Methods().Find(methodName.Value)
+	if method == nil {
+		return object.Null, fmt.Errorf("method %s is not found in class %s", methodName.Value, obj.Class().Name())
+	}
+	args := make([]object.Object, len(node.CallArgs))
+	for i, expr := range node.CallArgs {
+		obj, err := ev.Eval(expr, ctx)
+		if err != nil {
+			return object.Null, err
+		}
+		args[i] = obj
+	}
+	return method.Call(obj, args...)
 }

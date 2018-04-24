@@ -86,7 +86,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -155,7 +155,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -177,7 +177,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e = Eval(program, ctx)
 		if e != nil {
 			t.Error(e)
@@ -193,7 +193,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e = Eval(program, ctx)
 		if e != nil {
 			t.Error(e)
@@ -210,7 +210,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e = Eval(program, ctx)
 		if e != nil {
 			t.Error(e)
@@ -226,7 +226,7 @@ func TestEval(t *testing.T) {
 		if e != nil {
 			t.Error(e)
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e = Eval(program, ctx)
 		if e != nil {
 			t.Error(e)
@@ -259,7 +259,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -284,7 +284,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		ctx := object.NewContext(nil, object.InternalFunctionTable)
+		ctx := object.NewContext(nil)
 		_, e := Eval(p, ctx)
 		if e != nil {
 			t.Error(e)
@@ -316,7 +316,7 @@ func TestEval_Fibonacci_OldSyntax(t *testing.T) {
 	if e != nil {
 		t.Error(e)
 	}
-	ctx := object.NewContext(nil, object.InternalFunctionTable)
+	ctx := object.NewContext(nil)
 	_, e = Eval(program, ctx)
 	if e != nil {
 		t.Error(e)
@@ -338,7 +338,7 @@ func TestEval_Fibonacci_NewSyntax(t *testing.T) {
 	if e != nil {
 		t.Error(e)
 	}
-	ctx := object.NewContext(nil, object.InternalFunctionTable)
+	ctx := object.NewContext(nil)
 	_, e = Eval(program, ctx)
 	if e != nil {
 		t.Error(e)

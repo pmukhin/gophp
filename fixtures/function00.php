@@ -1,5 +1,7 @@
 <?php
 
+$zero = 0
+
 /**
  * Fibonacci recursive implementation.
  * @author Pavel Mukhin

@@ -3,6 +3,7 @@ package parser
 import (
 	"testing"
 	"github.com/pmukhin/gophp/scanner"
+	"github.com/pmukhin/gophp/error"
 	"github.com/pmukhin/gophp/ast"
 	"reflect"
 	"strings"
@@ -12,8 +13,7 @@ import (
 
 func run(t *testing.T, input string, expectations []ast.Statement) {
 	scn := scanner.New([]rune(input))
-	parser := Parser{scn: scn}
-	parser.init()
+	parser := New(scn, error.NewFormatter("<test>", []rune(input)))
 
 	program, err := parser.Parse()
 	if err != nil {
@@ -39,8 +39,10 @@ func run(t *testing.T, input string, expectations []ast.Statement) {
 }
 
 func TestParser_Parse_ArithmeticPrecedence(t *testing.T) {
-	scn := scanner.New([]rune(`println(5 + 5 * 3)`))
-	parser := New(scn)
+	input := []rune(`println(5 + 5 * 3)`)
+	scn := scanner.New(input)
+	parser := New(scn, error.NewFormatter("<test>", input))
+
 	_, e := parser.Parse()
 	if e != nil {
 		t.Error(e)
@@ -48,12 +50,16 @@ func TestParser_Parse_ArithmeticPrecedence(t *testing.T) {
 }
 
 func TestParser_Parse_Incomplete(t *testing.T) {
-	scn := scanner.New([]rune(`function fib($n) { if $n < 2 { $n } else { fib($n-1) + fib($n-2) }`))
-	parser := New(scn)
+	input := []rune(`function fib($n) { if $n < 2 { $n } else { fib($n-1) + fib($n-2) }`)
+	scn := scanner.New(input)
+	parser := New(scn, error.NewFormatter("<test>", input))
 
 	_, err := parser.Parse()
 	if err == nil {
-		t.Errorf("must return error")
+		t.Errorf("must return emitError")
+	}
+	if err != nil && !strings.Contains(err.Error(), "unexpected token EOF") {
+		t.Errorf("expected EOF error got: %s", err.Error())
 	}
 }
 
@@ -63,7 +69,7 @@ func TestParser_ParseSimpleConditional_FunctionDeclaration(t *testing.T) {
 		&ast.ExpressionStatement{
 			Expression: &ast.FunctionDeclarationExpression{
 				Name:  &ast.Identifier{Value: "first"},
-				Args:  []ast.Arg{},
+				Args:  []*ast.Arg{},
 				Block: &ast.BlockStatement{},
 			},
 		},

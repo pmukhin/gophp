@@ -1,4 +1,5 @@
 package: github.com/pmukhin/gophp
 import:
+  - package: github.com/golang-collections/collections/stack
   - package: github.com/spf13/cobra/cobra
   - package: github.com/spf13/pflag

@@ -43,13 +43,13 @@ func NewInternalFunc(name string, f func(ctx Context, args ...Object) (Object, e
 type FunctionObject interface {
 	Object
 	Name() string
-	Args() []ast.Arg
+	Args() []*ast.Arg
 	Block() *ast.BlockStatement
 }
 
 type InternalFunction struct {
 	name string
-	args []ast.Arg
+	args []*ast.Arg
 	f    func(ctx Context, args ...Object) (Object, error)
 }
 
@@ -63,7 +63,7 @@ func (inf InternalFunction) Name() string {
 	return inf.name
 }
 
-func (inf InternalFunction) Args() []ast.Arg {
+func (inf InternalFunction) Args() []*ast.Arg {
 	return inf.args
 }
 
@@ -75,12 +75,12 @@ func (inf InternalFunction) Call(ctx Context, args ...Object) (Object, error) {
 
 type UserFunction struct {
 	name  string
-	args  []ast.Arg
+	args  []*ast.Arg
 	block *ast.BlockStatement
 }
 
 // NewAnonymousFunc ...
-func NewAnonymousFunc(args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+func NewAnonymousFunc(args []*ast.Arg, block *ast.BlockStatement) FunctionObject {
 	b := make([]byte, 8)
 	for i := 0; i < 8; i++ {
 		b[i] = byte(i<<2*31 + i)
@@ -92,7 +92,7 @@ func NewAnonymousFunc(args []ast.Arg, block *ast.BlockStatement) FunctionObject 
 	}
 }
 
-func NewUserFunc(ns string, name string, args []ast.Arg, block *ast.BlockStatement) FunctionObject {
+func NewUserFunc(ns string, name string, args []*ast.Arg, block *ast.BlockStatement) FunctionObject {
 	var uf string
 
 	if ns == "" {
@@ -114,6 +114,6 @@ func (UserFunction) Id() string { panic("implement me") }
 
 func (uf UserFunction) Name() string { return uf.name }
 
-func (uf UserFunction) Args() []ast.Arg { return uf.args }
+func (uf UserFunction) Args() []*ast.Arg { return uf.args }
 
 func (uf UserFunction) Block() *ast.BlockStatement { return uf.block }

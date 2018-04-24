@@ -6,9 +6,7 @@ import (
 	"errors"
 )
 
-var InternalFunctionTable *FunctionTable
-
-func doPrint(delim string) func(ctx Context, args ...Object) (Object, error) {
+func doPrint(delimiter string) func(ctx Context, args ...Object) (Object, error) {
 	return func(ctx Context, args ...Object) (Object, error) {
 		if len(args) < 0 {
 			return Null, errors.New("println expects at least 1 argument")
@@ -16,26 +14,21 @@ func doPrint(delim string) func(ctx Context, args ...Object) (Object, error) {
 		for _, a := range args {
 			s, e := ToString(a)
 			if e != nil {
-				fmt.Printf("<%s> %v ", s.Class().Name(), s.Class())
+				fmt.Printf("<%s> %v ", a.Class().Name(), s.Class())
 				continue
 			}
-			fmt.Print(s.Value + " ")
+			fmt.Print(s.Value)
 		}
-		fmt.Print(delim)
+		fmt.Print(delimiter)
 		return Null, nil
 	}
 }
 
-func init() {
-	InternalFunctionTable = NewFunctionTable()
-	// print(...$args)
-	InternalFunctionTable.RegisterFunc(NewInternalFunc("print", doPrint("")))
-	// println(...$args)
-	InternalFunctionTable.RegisterFunc(NewInternalFunc("println", doPrint("\n")))
-
-	// exit()
-	InternalFunctionTable.RegisterFunc(NewInternalFunc("exit", func(ctx Context, args ...Object) (Object, error) {
-		os.Exit(-0)
+func registerPrintFunctions(ctx Context) {
+	ctx.SetGlobal("print", NewInternalFunc("print", doPrint("")))
+	ctx.SetGlobal("println", NewInternalFunc("print", doPrint("\n")))
+	ctx.SetGlobal("exit", NewInternalFunc("exit", func(ctx Context, args ...Object) (Object, error) {
+		os.Exit(0)
 		// for compiler
 		return Null, nil
 	}))

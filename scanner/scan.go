@@ -12,6 +12,8 @@ var tokens = map[string]token.TokenType{
 	"require":    token.REQUIRE,
 	"namespace":  token.NAMESPACE,
 	"use":        token.USE,
+	"final":      token.FINAL,
+	"abstract":   token.ABSTRACT,
 	"class":      token.CLASS,
 	"implements": token.IMPLEMENTS,
 	"protected":  token.PROTECTED,
@@ -36,9 +38,10 @@ var (
 
 	// static tokens
 	// system tokens
-	tokenEof     = token.Token{Type: token.EOF}
+	tokenEof     = token.Token{Type: token.EOF, Literal: "EOF"}
 	tokenIllegal = token.Token{Type: token.ILLEGAL}
-	tokenNewline = token.Token{Type: token.NEWLINE}
+
+	tokenDoubleDot = token.Token{Type: token.DOUBLE_DOT, Literal: ".."}
 
 	// arithmetic
 	tokenPlus        = token.Token{Type: token.PLUS, Literal: "+"}
@@ -153,6 +156,13 @@ func (s *Scanner) Next() (tok token.Token) {
 		} else {
 			tok = tokenColon
 		}
+	case '.':
+		if s.peek() == '.' {
+			s.next() // eat `.`
+			tok = tokenDoubleDot
+		} else {
+			tok = tokenIllegal
+		}
 	case ';':
 		tok = tokenSemicolon
 	case '!':
@@ -259,7 +269,9 @@ func (s *Scanner) Next() (tok token.Token) {
 		}
 	case '/':
 		if s.peek() == '*' {
-			tok = s.parseComment()
+			tok = s.parseCommentMultiLine()
+		} else if s.peek() == '/' {
+			tok = s.parseLineComment()
 		} else if s.peek() == '=' {
 			s.next()
 			tok = tokenDivAssign
@@ -282,6 +294,8 @@ func (s *Scanner) Next() (tok token.Token) {
 		}
 	}
 	s.insertSemi = insertSemi
+	tok.Pos = s.offset
+
 	s.next()
 	return
 }
@@ -337,7 +351,19 @@ func (s *Scanner) scanIdentifier() (token.Token) {
 	return token.Token{Type: token.IDENT, Literal: string(identifier)}
 }
 
-func (s *Scanner) parseComment() token.Token {
+func (s *Scanner) parseLineComment() token.Token {
+	com := make([]rune, 0, 256)
+	for {
+		if s.ch == '\n' {
+			break
+		}
+		com = append(com, s.ch)
+		s.next()
+	}
+	return token.Token{Type: token.COMMENT, Literal: string(com)}
+}
+
+func (s *Scanner) parseCommentMultiLine() token.Token {
 	com := make([]rune, 0, 256)
 	for {
 		com = append(com, s.ch)

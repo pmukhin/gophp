@@ -7,17 +7,26 @@ import (
 	"github.com/pmukhin/gophp/parser"
 	"github.com/pmukhin/gophp/eval"
 	"github.com/pmukhin/gophp/object"
+	error2 "github.com/pmukhin/gophp/error"
 )
+
+var evaluator eval.Evaluator
 
 func Main(filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
-	return runFile(f)
+	evaluator = eval.New()
+
+	// create context
+	ctx := object.NewContext(nil)
+	object.RegisterGlobals(ctx)
+
+	return runFile(f, ctx)
 }
 
-func runFile(file *os.File) error {
+func runFile(file *os.File, ctx object.Context) error {
 	sourceCode, err := readSourceCode(file)
 	if err != nil {
 		return err
@@ -26,15 +35,16 @@ func runFile(file *os.File) error {
 	if string(sourceCode[:5]) == "<?php" {
 		sourceCode = sourceCode[5:]
 	}
-	p := parser.New(scanner.New(sourceCode))
+
+	formatter := error2.NewFormatter(file.Name(), sourceCode)
+	p := parser.New(scanner.New(sourceCode), formatter)
 	code, e := p.Parse()
 	// parse error
 	if e != nil {
 		return e
 	}
 
-	ctx := object.NewContext(nil, object.InternalFunctionTable)
-	_, e = eval.Eval(code, ctx)
+	_, e = evaluator.Eval(code, ctx)
 
 	return e
 }
