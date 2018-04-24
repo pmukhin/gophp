@@ -9,6 +9,13 @@ $array = [1, 2, 3]
 $antotherVar = 365
 ```
 
+### Last statement is return statement
+```php
+function makeArray() {
+  []
+}
+```
+
 ### Type is a constant object
 ```php
 println(dump(Integer)) // <type 'ClassInteger'>
@@ -25,16 +32,7 @@ println(math\Pi); // 3.14
 
 ```
 
-### Generics
-```php
-function is<T>($o): Boolean { $o instanceof T }
-```
-
-
-
 ### Everything (almost) is epxression
 ```php
-$booleanVar = if is<Iterable>($array) { someResult() } else { someOtherResult() }
 $integerVar = try { someHeavyCalculation() } catch (MemoryException $e) { 0 }
-$some = $booleanVar->to<Integer>() + $integerVar
 ```
