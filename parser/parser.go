@@ -120,9 +120,9 @@ func (p *Parser) init() {
 	p.prefixExpressionParsers[token.PARENTHESIS_OPENING] = p.parseGroupedExpression
 	p.prefixExpressionParsers[token.IDENT] = p.parseIdentifier
 	p.prefixExpressionParsers[token.NUMBER] = p.parseInteger
-	p.prefixExpressionParsers[token.FOR] = p.parseLoop
+	p.prefixExpressionParsers[token.FOREACH] = p.parseForeach
 	p.prefixExpressionParsers[token.PUBLIC] = p.parseMethodDeclaration
-	p.prefixExpressionParsers[token.NEW] = p.parseClassInstantiation
+	p.prefixExpressionParsers[token.NEW] = p.parseNewExpression
 
 	p.infixExpressionParsers = make(map[token.TokenType]infixParser)
 	// infix parsers
@@ -170,7 +170,7 @@ func (p *Parser) Parse() (*ast.Module, error) {
 
 func (p *Parser) parseForeach() ast.Expression {
 	foreach := &ast.ForEachExpression{Token: p.curToken}
-	p.next() // eat `each`
+	p.next() // eat `foreach`
 	endWithParen := false
 
 	if p.oneOf(token.PARENTHESIS_OPENING) {
@@ -206,38 +206,30 @@ func (p *Parser) parseFor() ast.Expression {
 	panic("not implemented")
 }
 
-// parseLoop parsers all sorts of loop starting with `for`
-func (p *Parser) parseLoop() ast.Expression {
-	if p.peek().Type == token.EACH {
-		p.next() // eat `for`s
-		return p.parseForeach()
-	}
-	return p.parseFor()
-}
-
 func (p *Parser) parseStatement() ast.Statement {
-	defer func() {
-		if p.oneOf(token.SEMICOLON) {
-			p.next() // eat `;` or `\n`
-		}
-	}()
+	var st ast.Statement
 
 	switch p.curToken.Type {
 	case token.COMMENT:
 		p.next() // eat comment
-		return nil
+		st = nil
 	case token.USE:
 		// use NameSpace\\Class;
-		return p.parseUseStatement()
+		st = p.parseUseStatement()
 	case token.NAMESPACE:
 		// namespace NameSpace;
-		return p.parseNamespaceStatement()
+		st = p.parseNamespaceStatement()
 	case token.RETURN:
 		// return $value;
-		return p.parseReturnStatement()
+		st = p.parseReturnStatement()
 	default:
-		return p.parseExpressionStatement()
+		st = p.parseExpressionStatement()
 	}
+
+	if p.oneOf(token.SEMICOLON) {
+		p.next() // eat `;` or `\n`
+	}
+	return st
 }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
@@ -522,8 +514,8 @@ func (p *Parser) parseConstant() ast.Expression {
 	return ce
 }
 
-func (p *Parser) parseClassInstantiation() ast.Expression {
-	cle := ast.ClassInstantiationExpression{Token: p.curToken}
+func (p *Parser) parseNewExpression() ast.Expression {
+	cle := &ast.NewExpression{Token: p.curToken}
 	p.next() // eat `new`
 
 	cle.ClassName = p.parseIdentifier().(*ast.Identifier)

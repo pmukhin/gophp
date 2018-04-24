@@ -815,31 +815,31 @@ func (Module) statementNode() {
 	panic("implement me")
 }
 
-// ClassInstantiationExpression is a statement like
+// NewExpression is a statement like
 // new DateTime('now')
-type ClassInstantiationExpression struct {
+type NewExpression struct {
 	Token     token.Token
 	ClassName *Identifier
 	Args      []Expression
 }
 
-func (cis ClassInstantiationExpression) Accept(Visitor) {
+func (cis NewExpression) Accept(Visitor) {
 	panic("implement me")
 }
 
-func (ClassInstantiationExpression) Pos() int {
+func (NewExpression) Pos() int {
 	panic("implement me")
 }
 
-func (ClassInstantiationExpression) End() int {
+func (NewExpression) End() int {
 	panic("implement me")
 }
 
-func (ClassInstantiationExpression) TokenLiteral() string {
+func (NewExpression) TokenLiteral() string {
 	panic("implement me")
 }
 
-func (cis ClassInstantiationExpression) String() string {
+func (cis NewExpression) String() string {
 	args := make([]string, len(cis.Args))
 	for i, v := range cis.Args {
 		args[i] = v.String()
@@ -847,7 +847,7 @@ func (cis ClassInstantiationExpression) String() string {
 	return "new " + cis.ClassName.String() + "(" + strings.Join(args, ", ") + ")"
 }
 
-func (ClassInstantiationExpression) expressionNode() {}
+func (NewExpression) expressionNode() {}
 
 // PropertyDereference
 type PropertyDereference struct {
