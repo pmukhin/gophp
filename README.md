@@ -11,14 +11,14 @@ $antotherVar = 365
 
 ### Last statement is return statement
 ```php
-function makeArray() {
+function makeArray(): Array {
   []
 }
 ```
 
 ### Type is a constant object
 ```php
-println(dump(Integer)) // <type 'ClassInteger'>
+println(Integer) // <type 'ClassInteger'>
 ```
 
 ### Top level constants
