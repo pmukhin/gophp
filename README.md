@@ -28,6 +28,15 @@ foreach ["Pavel", "Kristina"] as $value {
 // Hello Kristina
 ```
 
+### Range operator
+```php
+foreach 0..3 as $i { println($i) }
+// 0
+// 1
+// 2
+// 3
+```
+
 ### Type is a constant object
 ```php
 println(Integer) // <type 'ClassInteger'>
