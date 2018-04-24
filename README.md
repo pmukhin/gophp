@@ -12,7 +12,12 @@ function run(Array $files) {
        println("failed to open file: {0}"->format($exception->getMessage()))
        continue
     }
-    println($file->readAll())
+    $content = if ($file->isDir()) {
+      "dir: {0}"->format($file->path())
+    } else {
+      $file->readAll()
+    }
+    println($content)
   }
 }
 
