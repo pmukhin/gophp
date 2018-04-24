@@ -9,11 +9,23 @@ $array = [1, 2, 3]
 $antotherVar = 365
 ```
 
-### Last statement is return statement
+### Last statement is a return statement
 ```php
 function makeArray(): Array {
   []
 }
+```
+
+### Everything is a value
+```php
+function helloWorld(String $name) { println("Hello " + $name) }
+$helloFunc = helloWorld
+
+foreach ["Pavel", "Kristina"] as $value {
+  $helloFunc($value)
+}
+// Hello Pavel
+// Hello Kristina
 ```
 
 ### Type is a constant object
