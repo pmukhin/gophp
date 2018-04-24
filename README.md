@@ -17,14 +17,18 @@ println(makeArray()) // []
 
 ### Everything is a value
 ```php
-function helloWorld(String $name) { println("Hello " + $name) }
+const Greeting = "Hello "
+
+function helloWorld(String $name) { println(Greeting + $name) }
 $helloFunc = helloWorld
 
-foreach ["Pavel", "Kristina"] as $value {
+foreach ["Pavel", "Kristina"] as $index => $value {
+  function(int $i) { print("" + $i + ": ") }($index)
   $helloFunc($value)
 }
-// Hello Pavel
-// Hello Kristina
+
+// 0: Hello Pavel
+// 1: Hello Kristina
 ```
 
 ### Range operator
@@ -33,7 +37,6 @@ foreach 0..3 as $i { println($i) }
 // 0
 // 1
 // 2
-// 3
 ```
 
 ### Type is a constant object
