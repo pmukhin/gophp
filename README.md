@@ -11,9 +11,8 @@ $antotherVar = 365
 
 ### Last statement is a return statement
 ```php
-function makeArray(): Array {
-  []
-}
+function makeArray(): Array { [] }
+println(makeArray()) // []
 ```
 
 ### Everything is a value
