@@ -17,7 +17,9 @@ println(makeArray()) // []
 
 ### Everything is a value
 ```php
-function helloWorld(String $name) { println("Hello " + $name) }
+const Greeting = "Hello "
+
+function helloWorld(String $name) { println(Greeting + $name) }
 $helloFunc = helloWorld
 
 foreach ["Pavel", "Kristina"] as $index => $value {
