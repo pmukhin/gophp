@@ -4,7 +4,6 @@ import (
 	"github.com/pmukhin/gophp/ast"
 	"fmt"
 	"strings"
-	"encoding/base64"
 )
 
 func funToString(this Object, args ...Object) (Object, error) {
@@ -17,8 +16,8 @@ func funToString(this Object, args ...Object) (Object, error) {
 		str := fmt.Sprintf(arg.String())
 		argsString[i] = str
 	}
-	representation := fmt.Sprintf("<object of type %s, %s(%s): [NOT IMPLEMENTED]>", this.Class().Name(),
-		f.Name(), strings.Join(argsString, ", "))
+	representation := fmt.Sprintf("<object of type %s, (%s): [NOT IMPLEMENTED]>", this.Class().Name(),
+		strings.Join(argsString, ", "))
 
 	return &StringObject{Value: representation}, nil
 }
@@ -36,21 +35,19 @@ var (
 	}
 )
 
-func NewInternalFunc(name string, f func(ctx Context, args ...Object) (Object, error)) FunctionObject {
-	return &InternalFunction{name: name, f: f}
+func NewInternalFunc(f func(args ...Object) (Object, error)) FunctionObject {
+	return &InternalFunction{f: f}
 }
 
 type FunctionObject interface {
 	Object
-	Name() string
 	Args() []*ast.Arg
 	Block() *ast.BlockStatement
 }
 
 type InternalFunction struct {
-	name string
 	args []*ast.Arg
-	f    func(ctx Context, args ...Object) (Object, error)
+	f    func(args ...Object) (Object, error)
 }
 
 func (inf InternalFunction) Class() Class {
@@ -59,22 +56,17 @@ func (inf InternalFunction) Class() Class {
 
 func (inf InternalFunction) Id() string { panic("implement me") }
 
-func (inf InternalFunction) Name() string {
-	return inf.name
-}
-
 func (inf InternalFunction) Args() []*ast.Arg {
 	return inf.args
 }
 
 func (InternalFunction) Block() *ast.BlockStatement { return nil }
 
-func (inf InternalFunction) Call(ctx Context, args ...Object) (Object, error) {
-	return inf.f(ctx, args...)
+func (inf InternalFunction) Call(args ...Object) (Object, error) {
+	return inf.f(args...)
 }
 
 type UserFunction struct {
-	name  string
 	args  []*ast.Arg
 	block *ast.BlockStatement
 }
@@ -86,23 +78,13 @@ func NewAnonymousFunc(args []*ast.Arg, block *ast.BlockStatement) FunctionObject
 		b[i] = byte(i<<2*31 + i)
 	}
 	return &UserFunction{
-		name:  base64.StdEncoding.EncodeToString(b),
 		args:  args,
 		block: block,
 	}
 }
 
-func NewUserFunc(ns string, name string, args []*ast.Arg, block *ast.BlockStatement) FunctionObject {
-	var uf string
-
-	if ns == "" {
-		uf = name
-	} else {
-		uf = ns + "\\" + name
-	}
-
+func NewUserFunc(args []*ast.Arg, block *ast.BlockStatement) FunctionObject {
 	return &UserFunction{
-		name:  uf,
 		args:  args,
 		block: block,
 	}
@@ -111,8 +93,6 @@ func NewUserFunc(ns string, name string, args []*ast.Arg, block *ast.BlockStatem
 func (UserFunction) Class() Class { return functionClass }
 
 func (UserFunction) Id() string { panic("implement me") }
-
-func (uf UserFunction) Name() string { return uf.name }
 
 func (uf UserFunction) Args() []*ast.Arg { return uf.args }
 

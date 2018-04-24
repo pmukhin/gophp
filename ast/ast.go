@@ -729,9 +729,7 @@ type FunctionDeclarationExpression struct {
 	Block      *BlockStatement
 }
 
-func (FunctionDeclarationExpression) Pos() int {
-	panic("implement me")
-}
+func (fde FunctionDeclarationExpression) Pos() int { return fde.Token.Pos }
 
 func (FunctionDeclarationExpression) End() int {
 	panic("implement me")
@@ -745,7 +743,10 @@ func (FunctionDeclarationExpression) Accept(Visitor) { panic("implement me") }
 
 func (fde FunctionDeclarationExpression) String() string {
 	out := bytes.Buffer{}
-	out.WriteString("function " + fde.Name.String() + "(")
+	out.WriteString("function")
+	if !fde.Anonymous {
+		out.WriteString(" " + fde.Name.String() + "(")
+	}
 
 	args := make([]string, len(fde.Args))
 	for i, a := range fde.Args {

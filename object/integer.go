@@ -126,7 +126,7 @@ var (
 
 	//IntegerClass = newInternalClass("Integer", true, false, integerConstructor{}, InternalConstructor(ic))
 	IntegerClass = internalClass{
-		name:                "Integer",
+		name:                "Int",
 		final:               true,
 		abstract:            false,
 		constructor:         integerConstructor{},
@@ -134,6 +134,10 @@ var (
 		methodSet:           newMethodSet(integerMethodsMap),
 	}
 )
+
+func registerIntConstants(ctx Context) {
+	ctx.SetGlobal(IntegerClass.name, IntegerClass)
+}
 
 type IntegerObject struct {
 	Value int64

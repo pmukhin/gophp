@@ -18,7 +18,7 @@ func ToString(o Object) (*StringObject, error) {
 }
 
 func ToInteger(o Object) (*IntegerObject, error) {
-	if o.Class().Name() == "Integer" {
+	if o.Class().Name() == "Int" {
 		return o.(*IntegerObject), nil
 	}
 	toInt := o.Class().Methods().Find("__toInt")

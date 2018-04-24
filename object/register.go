@@ -5,6 +5,8 @@ func RegisterGlobals(ctx Context) error {
 	registerPrintFunctions(ctx)
 	registerMathFunctions(ctx)
 	registerOsConstants(ctx)
+	registerIntConstants(ctx)
+	registerStringConstants(ctx)
 
 	return nil
 }

@@ -1,12 +1,12 @@
 package eval
 
 import (
+	"errors"
+	"fmt"
+	"github.com/golang-collections/collections/stack"
 	"github.com/pmukhin/gophp/ast"
 	"github.com/pmukhin/gophp/object"
-	"fmt"
-	"errors"
 	"strings"
-	"github.com/golang-collections/collections/stack"
 )
 
 type exceptionError struct {
@@ -24,7 +24,7 @@ type stateType struct {
 	uses         map[string]string
 }
 
-func (s *stateType) SetNamespace(ns string) (error) {
+func (s *stateType) SetNamespace(ns string) error {
 	if s.namespaceSet {
 		return errors.New("namespace is already set")
 	}
@@ -55,18 +55,9 @@ var opMethods = map[string]string{
 	">=":  "__gte",
 	"=<":  "__lte",
 
-
 	"&": "__and",
 	"|": "__or",
 }
-
-type returnObject struct {
-	value object.Object
-}
-
-func (returnObject) Class() object.Class { panic("implement me") }
-
-func (returnObject) Id() string { panic("implement me") }
 
 // Evaluator ...
 type Evaluator interface {
@@ -115,6 +106,7 @@ func (ev *evaluator) evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Exp
 	if use, ok := ev.state.uses[callName]; ok {
 		callName = use
 	}
+
 	fun, err := ctx.GetGlobal(callName)
 	if err != nil {
 		return nil, err
@@ -128,11 +120,11 @@ func (ev *evaluator) evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Exp
 	}
 	switch realFun := fun.(type) {
 	case *object.InternalFunction:
-		return realFun.Call(ctx, args...)
+		return realFun.Call(args...)
 	case *object.UserFunction:
-		funCtx := object.CloneContext(ctx, nil)
-		for i, definedArg := range realFun.Args() {
-			funCtx.SetContextVar(definedArg.Name.Name, args[i])
+		funCtx, e := ev.injectArgs(ctx, callArgs, realFun)
+		if e != nil {
+			return object.Null, e
 		}
 		return ev.Eval(realFun.Block(), funCtx)
 	default:
@@ -140,6 +132,24 @@ func (ev *evaluator) evalRegisteredFunc(name *ast.Identifier, callArgs []ast.Exp
 	}
 }
 
+func (ev *evaluator) injectArgs(ctx object.Context, callArgs []ast.Expression, fun object.FunctionObject) (object.Context, error) {
+	var err error
+	args := make([]object.Object, len(callArgs))
+	for i, a := range callArgs {
+		args[i], err = ev.Eval(a, ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	funCtx := object.CloneContext(ctx, nil)
+	for i, definedArg := range fun.Args() {
+		funCtx.SetContextVar(definedArg.Name.Name, args[i])
+	}
+
+	return funCtx, nil
+}
+
+// unpackReturnObject ...
 func unpackReturnObject(o object.Object, err error) (object.Object, error) {
 	if v, ok := o.(returnObject); ok {
 		return v.value, err
@@ -147,6 +157,7 @@ func unpackReturnObject(o object.Object, err error) (object.Object, error) {
 	return o, err
 }
 
+// evalForeach ...
 func (ev *evaluator) evalForeach(foreach *ast.ForEachExpression, ctx object.Context) (object.Object, error) {
 	array, err := ev.Eval(foreach.Array, ctx)
 	if err != nil {
@@ -168,8 +179,8 @@ func (ev *evaluator) evalForeach(foreach *ast.ForEachExpression, ctx object.Cont
 }
 
 // registerFunc puts func into globals table
-func registerFunc(ctx object.Context, fun object.FunctionObject) error {
-	return ctx.SetGlobal(fun.Name(), fun)
+func registerFunc(ctx object.Context, name string, fun object.FunctionObject) error {
+	return ctx.SetGlobal(name, fun)
 }
 
 func (ev *evaluator) wrap(err error, node ast.Node) error {
@@ -186,15 +197,16 @@ func (ev *evaluator) Eval(node ast.Node, ctx object.Context) (object.Object, err
 
 func (ev *evaluator) evalFunctionCall(node *ast.FunctionCall, ctx object.Context) (object.Object, error) {
 	ev.stack.Push(fmt.Sprintf("%s", node.Target.String()))
-	if registeredFuncName, ok := node.Target.(*ast.Identifier); ok {
-		return unpackReturnObject(ev.evalRegisteredFunc(registeredFuncName, node.CallArgs, ctx))
+	if funcName, ok := node.Target.(*ast.Identifier); ok {
+		return unpackReturnObject(ev.evalRegisteredFunc(funcName, node.CallArgs, ctx))
 	}
 	anonymous := node.Target.(ast.Expression)
 	resolve, err := ev.Eval(anonymous, ctx)
 	if err != nil {
 		return object.Null, err
 	}
-	return unpackReturnObject(ev.Eval(resolve.(object.FunctionObject).Block(), ctx))
+	funCtx, err := ev.injectArgs(ctx, node.CallArgs, resolve.(object.FunctionObject))
+	return unpackReturnObject(ev.Eval(resolve.(object.FunctionObject).Block(), funCtx))
 }
 
 func (ev *evaluator) evalArray(node *ast.ArrayLiteral, ctx object.Context) (object.Object, error) {
@@ -233,7 +245,8 @@ func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, e
 		if node.Anonymous == true {
 			return object.NewAnonymousFunc(node.Args, node.Block), nil
 		}
-		return object.Null, registerFunc(ctx, object.NewUserFunc(ev.state.namespace, node.Name.Value, node.Args, node.Block))
+		name := object.FullyQ(ev.state.namespace, node.Name.Value)
+		return object.Null, registerFunc(ctx, name, object.NewUserFunc(node.Args, node.Block))
 	case *ast.FunctionCall:
 		return ev.evalFunctionCall(node, ctx)
 	case *ast.FetchExpression:
@@ -404,7 +417,7 @@ func (ev *evaluator) evalFetchExpression(ex *ast.FetchExpression, ctx object.Con
 
 // evalMethodCall ...
 func (ev *evaluator) evalMethodCall(obj object.Object, node *ast.FunctionCall, ctx object.Context) (object.Object, error) {
-	methodName, ok := node.Target.(*ast.Identifier);
+	methodName, ok := node.Target.(*ast.Identifier)
 	if !ok {
 		return object.Null, errors.New("method name must be an Identifier")
 	}

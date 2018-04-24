@@ -1,11 +1,11 @@
 package eval
 
 import (
-	"testing"
 	"github.com/pmukhin/gophp/ast"
 	"github.com/pmukhin/gophp/object"
 	"github.com/pmukhin/gophp/parser"
 	"github.com/pmukhin/gophp/scanner"
+	"testing"
 )
 
 func checkContextVariableInt(t *testing.T, ctx object.Context, name string, value int64) {

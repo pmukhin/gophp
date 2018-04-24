@@ -75,6 +75,10 @@ var (
 	}
 )
 
+func registerStringConstants(ctx Context) {
+	ctx.SetGlobal("String", stringClass)
+}
+
 // StringObject ...
 type StringObject struct {
 	Value string

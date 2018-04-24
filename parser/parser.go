@@ -710,10 +710,12 @@ func (p *Parser) parseFunctionCall(left ast.Expression) ast.Expression {
 	switch def := left.(type) {
 	case *ast.Identifier:
 		call.Target = def
+	case *ast.FunctionDeclarationExpression:
+		call.Target = def
 	case *ast.VariableExpression:
 		call.Target = def
 	default:
-		p.emitErrorInPos(left.Pos(), "expected either ident or variable, %v given", left)
+		p.emitErrorInPos(left.Pos(), "expected either ident or variable, %v given", def)
 	}
 	call.CallArgs = p.parseExpressionList()
 
