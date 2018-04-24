@@ -88,8 +88,7 @@ const (
 	WHILE                     /* "while"			*/
 	ENDWHILE                  /* "endwhile"			*/
 	FOR                       /* "for"			*/
-	EACH                      /* "each"			*/
-	ENDFOREACH                /* "endforeach"			*/
+	FOREACH                   /* "foreach"			*/
 	DECLARE                   /* "declare"			*/
 	ENDDECLARE                /* "enddeclare"			*/
 	AS                        /* "as"			*/

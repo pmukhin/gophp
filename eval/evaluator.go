@@ -337,8 +337,8 @@ func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, e
 			e := ctx.SetContextVar(left.Name, right)
 			return right, e
 		}
-	case *ast.ClassInstantiationExpression:
-		panic("not implemented")
+	case *ast.NewExpression:
+		return ev.evalConstructorCall(node, ctx)
 	case *ast.ExpressionStatement:
 		return ev.Eval(node.Expression, ctx)
 	case *ast.BlockStatement:
@@ -434,4 +434,20 @@ func (ev *evaluator) evalMethodCall(obj object.Object, node *ast.FunctionCall, c
 		args[i] = obj
 	}
 	return method.Call(obj, args...)
+}
+
+// evalConstructorCall ...
+func (ev *evaluator) evalConstructorCall(node *ast.NewExpression, ctx object.Context) (object.Object, error) {
+	class, err := ctx.GetGlobal(node.ClassName.Value)
+	if err != nil {
+		return object.Null, err
+	}
+	switch class := class.(type) {
+	case *object.InternalClass:
+		fmt.Println(*class)
+		panic("not implemented")
+	default:
+		return object.Null, fmt.Errorf("%s is not a class but %s", node.ClassName.Value, class.Class().Name())
+	}
+	panic("ad")
 }

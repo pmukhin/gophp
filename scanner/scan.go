@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"io"
 	"unicode"
 	"github.com/pmukhin/gophp/token"
 )
@@ -24,8 +23,7 @@ var tokens = map[string]token.TokenType{
 	"if":         token.IF,
 	"else":       token.ELSE,
 	"extends":    token.EXTENDS,
-	"for":        token.FOR,
-	"each":       token.EACH,
+	"foreach":    token.FOREACH,
 	"instanceof": token.INSTANCEOF,
 	"const":      token.CONST,
 	"throw":      token.THROW,
@@ -33,10 +31,6 @@ var tokens = map[string]token.TokenType{
 }
 
 var (
-	// errors
-	eof = io.EOF
-
-	// static tokens
 	// system tokens
 	tokenEof     = token.Token{Type: token.EOF, Literal: "EOF"}
 	tokenIllegal = token.Token{Type: token.ILLEGAL}
@@ -269,9 +263,9 @@ func (s *Scanner) Next() (tok token.Token) {
 		}
 	case '/':
 		if s.peek() == '*' {
-			tok = s.parseCommentMultiLine()
+			tok = s.scanCommentMultiLine()
 		} else if s.peek() == '/' {
-			tok = s.parseLineComment()
+			tok = s.scanLineComment()
 		} else if s.peek() == '=' {
 			s.next()
 			tok = tokenDivAssign
@@ -335,23 +329,24 @@ func (s *Scanner) skipWhitespace() {
 }
 
 func (s *Scanner) isIdentifier(r rune) bool {
-	return unicode.IsLetter(r) || r == '_' || unicode.IsDigit(r)
+	return r != ' ' && (unicode.IsLetter(r) || r == '_' || unicode.IsDigit(r))
 }
 
 func (s *Scanner) scanIdentifier() (token.Token) {
 	identifier := make([]rune, 0, 32)
 	for s.isIdentifier(s.ch) {
 		identifier = append(identifier, s.ch)
-		if tok, ok := tokens[string(identifier)]; ok {
-			return token.Token{Type: tok, Literal: string(identifier)}
-		}
 		s.next()
 	}
-	s.backup()
+	s.backup() // roll back last ch which is not a part of ident
+	if tok, ok := tokens[string(identifier)]; ok {
+		return token.Token{Type: tok, Literal: string(identifier)}
+	}
+
 	return token.Token{Type: token.IDENT, Literal: string(identifier)}
 }
 
-func (s *Scanner) parseLineComment() token.Token {
+func (s *Scanner) scanLineComment() token.Token {
 	com := make([]rune, 0, 256)
 	for {
 		if s.ch == '\n' {
@@ -363,7 +358,7 @@ func (s *Scanner) parseLineComment() token.Token {
 	return token.Token{Type: token.COMMENT, Literal: string(com)}
 }
 
-func (s *Scanner) parseCommentMultiLine() token.Token {
+func (s *Scanner) scanCommentMultiLine() token.Token {
 	com := make([]rune, 0, 256)
 	for {
 		com = append(com, s.ch)
