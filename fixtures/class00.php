@@ -8,8 +8,8 @@ class Dog {
     }
 }
 
-$dog = new Dog
+/*$dog = new Dog
 
 foreach 0..5 as $i {
     $dog->bark()
-}
+}*/
