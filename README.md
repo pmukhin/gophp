@@ -9,9 +9,37 @@ $array = [1, 2, 3]
 $antotherVar = 365
 ```
 
+### Last statement is a return statement
+```php
+function makeArray(): Array {
+  []
+}
+```
+
+### Everything is a value
+```php
+function helloWorld(String $name) { println("Hello " + $name) }
+$helloFunc = helloWorld
+
+foreach ["Pavel", "Kristina"] as $value {
+  $helloFunc($value)
+}
+// Hello Pavel
+// Hello Kristina
+```
+
+### Range operator
+```php
+foreach 0..3 as $i { println($i) }
+// 0
+// 1
+// 2
+// 3
+```
+
 ### Type is a constant object
 ```php
-println(dump(Integer)) // <type 'ClassInteger'>
+println(Integer) // <type 'ClassInteger'>
 ```
 
 ### Top level constants
@@ -25,16 +53,7 @@ println(math\Pi); // 3.14
 
 ```
 
-### Generics
-```php
-function is<T>($o): Boolean { $o instanceof T }
-```
-
-
-
 ### Everything (almost) is epxression
 ```php
-$booleanVar = if is<Iterable>($array) { someResult() } else { someOtherResult() }
 $integerVar = try { someHeavyCalculation() } catch (MemoryException $e) { 0 }
-$some = $booleanVar->to<Integer>() + $integerVar
 ```
