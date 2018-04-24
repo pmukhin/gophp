@@ -1,5 +1,4 @@
-# gophp
-Dialect of PHP written in Go with many modern features 
+## gophp is a dialect of PHP written in pure go with many modern features 
 
 ## Exapmples
 
