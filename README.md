@@ -1,4 +1,29 @@
-## gophp is a dialect of PHP written in pure go with many modern features 
+## Dialect of PHP written in Go with many modern features
+```php
+namespace main
+
+use os\{args, File}
+
+function run(Array $files) {
+  foreach $files as $name {
+     $file = try { 
+       File::open($args) 
+     } catch (os\Exception $exception) {
+       println("failed to open file: {0}"->format($exception->getMessage()))
+       continue
+    }
+    println($file->readAll())
+  }
+}
+
+run(args()[1:])
+
+```
+## Why
+The project is a sort of a research and there's no aim to prepare a drop-in replacement for current implementations of PHP like native or Hack.
+
+## Motivation
+PHP is commonly known as a `bad design fractal` and lacks a lot of progress made in Programming Languages theory for last 20 years. On the other side PHP is still the language of the Web. This project is just one vision of how the issues of language might be sold.
 
 ## Exapmples
 
