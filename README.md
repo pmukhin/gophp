@@ -5,20 +5,20 @@ namespace main
 use os\{args, File}
 
 function run(Array $files) {
-	foreach $files as $name {
-		$file = try { 
-    		File::open($args) 
-   		} catch (os\Exception $exception) {
-    		println("failed to open file: {0}"->format($exception->getMessage()))
-      		continue
-		}
+  foreach $files as $name {
+    $file = try { 
+      File::open($args) 
+    } catch (os\Exception $exception) {
+      println("failed to open file: {0}"->format($exception->getMessage()))
+      continue
+    }
 
-    	$content = if $file->isDir() 
-			"dir: {0}"->format($file->path()) 
-				else $file->readAll()
+    $content = if $file->isDir() 
+      "dir: {0}"->format($file->path()) 
+        else $file->readAll()
 
-		println($content)
-	}
+    println($content)
+  }
 }
 
 run(args()[1:])
