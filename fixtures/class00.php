@@ -2,7 +2,7 @@
 
 namespace main
 
-class Dog {
+final class Dog {
     public function bark() {
         println("bark!")
     }

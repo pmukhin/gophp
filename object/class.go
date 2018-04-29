@@ -40,6 +40,52 @@ type Object interface {
 	Id() string
 }
 
+func NewUserClass(final bool, abstract bool, methodSet MethodSet, propertySet map[string]Object) Class {
+	return &UserClass{
+		final:           final,
+		abstract:        abstract,
+		methodSet:       methodSet,
+		staticMethodSet: nil,
+		propertySet:     propertySet,
+	}
+}
+
+type UserClass struct {
+	final           bool
+	abstract        bool
+	methodSet       MethodSet
+	staticMethodSet MethodSet
+	propertySet     map[string]Object
+}
+
+func (UserClass) Name() string {
+	panic("implement me")
+}
+
+func (UserClass) Constructor() Method {
+	panic("implement me")
+}
+
+func (UserClass) SuperClass() Class {
+	panic("implement me")
+}
+
+func (UserClass) IsFinal() bool {
+	panic("implement me")
+}
+
+func (UserClass) IsAbstract() bool {
+	panic("implement me")
+}
+
+func (UserClass) Methods() MethodSet {
+	panic("implement me")
+}
+
+func (UserClass) StaticMethods() MethodSet {
+	panic("implement me")
+}
+
 type InternalClass struct {
 	name                string
 	final               bool

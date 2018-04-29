@@ -21,6 +21,8 @@ const (
 	ModPublic    = iota
 	ModPrivate
 	ModProtected
+	ModFinal
+	ModAbstract
 )
 
 type Node interface {
@@ -47,6 +49,11 @@ type Statement interface {
 type Expression interface {
 	Node
 	expressionNode()
+}
+
+type FlagFull interface {
+	SetFlag(int32) bool
+	GetFlag(int32) bool
 }
 
 // Identifier represents variable names, method names, constants
@@ -769,9 +776,11 @@ func (FunctionDeclarationExpression) expressionNode() {
 }
 
 type MethodDeclarationExpression struct {
-	Token   token.Token
-	Access  int32
-	IsFinal bool
+	Token      token.Token
+	Access     int32
+	IsAbstract bool
+	IsStatic   bool
+	IsFinal    bool
 	FunctionDeclarationExpression
 }
 
@@ -974,13 +983,15 @@ func (ConstantExpression) expressionNode() {
 func (NamespaceStatement) statementNode() {}
 
 type ClassDeclarationExpression struct {
-	Token token.Token
-	Name  *Identifier
-	Block *BlockStatement
+	Token      token.Token
+	IsAbstract bool
+	IsFinal    bool
+	Name       *Identifier
+	Block      *BlockStatement
 }
 
-func (cds ClassDeclarationExpression) Pos() int {
-	return cds.Token.Pos
+func (cde ClassDeclarationExpression) Pos() int {
+	return cde.Token.Pos
 }
 
 func (ClassDeclarationExpression) End() int {

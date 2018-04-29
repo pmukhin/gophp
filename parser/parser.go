@@ -20,6 +20,8 @@ const (
 	pPrefix      // -$x or --$x
 )
 
+var accessModifiers = []int32{ast.ModPublic, ast.ModProtected, ast.ModPrivate}
+
 var precedences = map[token.TokenType]int{
 	token.CURLY_OPEN: pBraces,
 
@@ -123,6 +125,10 @@ func (p *Parser) init() {
 	p.prefixExpressionParsers[token.FOREACH] = p.parseForeach
 	p.prefixExpressionParsers[token.PUBLIC] = p.parseMethodDeclaration
 	p.prefixExpressionParsers[token.NEW] = p.parseNewExpression
+
+	// class modifiers
+	p.prefixExpressionParsers[token.ABSTRACT] = p.parseModifiedExpression
+	p.prefixExpressionParsers[token.FINAL] = p.parseModifiedExpression
 
 	p.infixExpressionParsers = make(map[token.TokenType]infixParser)
 	// infix parsers
@@ -536,7 +542,7 @@ func (p *Parser) parseMethodDeclaration() ast.Expression {
 }
 
 func (p *Parser) parseClassDeclaration() ast.Expression {
-	cde := ast.ClassDeclarationExpression{Token: p.curToken}
+	cde := &ast.ClassDeclarationExpression{Token: p.curToken}
 	p.next() // eat `class`
 
 	cde.Name = p.parseIdentifier().(*ast.Identifier)
@@ -749,4 +755,40 @@ func (p *Parser) parseFetchExpression(left ast.Expression) ast.Expression {
 	}
 
 	return fe
+}
+
+// parseModifiedExpression ...
+func (p *Parser) parseModifiedExpression() ast.Expression {
+	tok := p.curToken
+	flags := make(map[int32]bool)
+	for isModifier(p.curToken.Type) {
+		flags[modifier(p.curToken.Type)] = true
+		p.next() // eat <MODIFIER>
+	}
+	modified := p.parseExpression(pLowest)
+
+	switch m := modified.(type) {
+	case *ast.ClassDeclarationExpression:
+		m.IsAbstract = flags[ast.ModAbstract] == true
+		delete(flags, ast.ModAbstract)
+		m.IsFinal = flags[ast.ModFinal] == true
+		delete(flags, ast.ModFinal)
+	case *ast.MethodDeclarationExpression:
+		m.IsAbstract = flags[ast.ModAbstract] == true
+		delete(flags, ast.ModAbstract)
+		m.IsFinal = flags[ast.ModFinal] == true
+		delete(flags, ast.ModFinal)
+		// @todo optimize
+		for _, mod := range accessModifiers {
+			if _, ok := flags[mod]; ok {
+				delete(flags, mod)
+				m.Access = mod
+				break
+			}
+		}
+	default:
+		p.emitErrorInPos(tok.Pos, "unexpected modifier for %v", modified)
+	}
+
+	return modified
 }

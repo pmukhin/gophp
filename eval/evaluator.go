@@ -191,6 +191,7 @@ func (ev *evaluator) wrap(err error, node ast.Node) error {
 	return fmt.Errorf("%s at %s", err.Error(), strings.Join(stackTrace, "\n"))
 }
 
+// Eval ...
 func (ev *evaluator) Eval(node ast.Node, ctx object.Context) (object.Object, error) {
 	return ev.doEval(node, ctx)
 }
@@ -229,6 +230,7 @@ func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, e
 		return ev.evalArray(node, ctx)
 	case *ast.NamespaceStatement:
 		ev.state.SetNamespace(node.Namespace)
+		return object.Null, nil
 	case *ast.UseStatement:
 		for _, name := range node.Classes {
 			ev.state.uses[name] = node.Namespace + "\\" + name
@@ -251,6 +253,8 @@ func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, e
 		return ev.evalFunctionCall(node, ctx)
 	case *ast.FetchExpression:
 		return ev.evalFetchExpression(node, ctx)
+	case *ast.ClassDeclarationExpression:
+		return ev.registerUserClass(node, ctx)
 	case *ast.ConditionalExpression:
 		condition, err := ev.Eval(node.Condition, ctx)
 		if err != nil {
@@ -303,15 +307,7 @@ func (ev *evaluator) doEval(node ast.Node, ctx object.Context) (object.Object, e
 		return nil, fmt.Errorf("operator %s (method %s) is not defined on type %s",
 			node.Op, opMethods[node.Op], l.Class().Name())
 	case *ast.IndexExpression:
-		l, err := ev.Eval(node.Left, ctx)
-		if err != nil {
-			return nil, err
-		}
-		index, err := ev.Eval(node.Index, ctx)
-		if i := l.Class().Methods().Find("__index"); i != nil {
-			return i.Call(l, index)
-		}
-		return object.Null, fmt.Errorf("%v does not support indexing", l.Class().Name())
+		return ev.evalIndexExpression(node, ctx)
 	case *ast.IntegerLiteral:
 		return object.IntegerClass.InternalConstructor(node.Value)
 	case *ast.StringLiteral:
@@ -450,4 +446,22 @@ func (ev *evaluator) evalConstructorCall(node *ast.NewExpression, ctx object.Con
 		return object.Null, fmt.Errorf("%s is not a class but %s", node.ClassName.Value, class.Class().Name())
 	}
 	panic("ad")
+}
+
+// evalIndexExpression ...
+func (ev *evaluator) evalIndexExpression(node *ast.IndexExpression, ctx object.Context) (object.Object, error) {
+	l, err := ev.Eval(node.Left, ctx)
+	if err != nil {
+		return nil, err
+	}
+	index, err := ev.Eval(node.Index, ctx)
+	if i := l.Class().Methods().Find("__index"); i != nil {
+		return i.Call(l, index)
+	}
+	return object.Null, fmt.Errorf("%v does not support indexing", l.Class().Name())
+}
+
+func (ev *evaluator) registerUserClass(cde *ast.ClassDeclarationExpression, ctx object.Context) (object.Object, error) {
+	_ = cde.Name.Value
+	panic("")
 }
